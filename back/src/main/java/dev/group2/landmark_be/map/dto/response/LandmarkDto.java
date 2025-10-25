@@ -1,4 +1,4 @@
-package dev.group2.landmark_be.map.dto;
+package dev.group2.landmark_be.map.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

@@ -1,6 +1,6 @@
 package dev.group2.landmark_be.map.entity;
 
-import org.geolatte.geom.MultiPolygon;
+import org.locationtech.jts.geom.MultiPolygon;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

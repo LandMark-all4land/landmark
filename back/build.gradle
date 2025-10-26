@@ -36,7 +36,7 @@ dependencies {
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
 	implementation 'org.hibernate.orm:hibernate-spatial:6.5.2.Final'	// geometry 타입을 JPA에서 사용하기 위해
-	implementation 'com.bedatadriven:jackson-datatype-jts:2.5'			// 자바 geometry 객체(jts) geojson으로 자동 변환 라이브러리
+	implementation 'org.wololo:jts2geojson:0.16.1' // 단방향 변환 유틸(가볍고 간단)
 }
 
 tasks.named('test') {

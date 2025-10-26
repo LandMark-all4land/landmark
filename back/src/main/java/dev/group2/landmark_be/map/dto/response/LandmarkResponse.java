@@ -7,6 +7,7 @@ public record LandmarkResponse(
 	String name,
 	String address,
 	String admCode,
+	String admName,
 	Point geom,
 	double latitude,	// 위도
 	double longitude	// 경도

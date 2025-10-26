@@ -10,5 +10,5 @@ import dev.group2.landmark_be.map.entity.LandmarkRaster;
 @Repository
 public interface LandmarkRasterRepository extends JpaRepository<LandmarkRaster, Integer> {
 
-	List<LandmarkRaster> findAllByLandmarkId(Integer landmarkId);
+	List<LandmarkRaster> findAllByLandmark_Id(Integer landmarkId);
 }

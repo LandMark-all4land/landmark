@@ -17,8 +17,8 @@ public class AdmBoundaryService {
 
 	// 시도의 레벨값 : 1
 	public List<AdmBoundaryResponse> getAllSidoBoundaries() {
-		List<AdmBoundary> entities = admBoundaryRepository.findAllByLevel((short)1);
-		return entities.stream()
+		List<AdmBoundary> admBoundaries = admBoundaryRepository.findAllByLevel((short)1);
+		return admBoundaries.stream()
 			.map(this::convertToResponse)
 			.toList();
 	}

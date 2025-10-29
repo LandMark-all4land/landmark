@@ -1,4 +1,5 @@
 package dev.group2.landmark_be.map.controller;
+import dev.group2.landmark_be.global.dto.ApiResponse;
 import dev.group2.landmark_be.map.dto.response.LandmarkDto;
 import dev.group2.landmark_be.map.dto.response.LandmarkRasterResponse;
 import dev.group2.landmark_be.map.dto.response.LandmarkResponse;
@@ -32,9 +33,9 @@ public class LandmarkController {
 
 	// 단일 랜드마크 조회
 	@GetMapping("/{id}")
-	public ResponseEntity<LandmarkResponse> getLandmarkById(@PathVariable Integer id) {
+	public ApiResponse<LandmarkResponse> getLandmarkById(@PathVariable Integer id) {
 		LandmarkResponse landmarkResponse = landmarkService.getLandmarkById(id);
-		return ResponseEntity.ok(landmarkResponse);
+		return ApiResponse.success(landmarkResponse);
 	}
 
 	// @GetMapping("/grouped")
@@ -44,16 +45,15 @@ public class LandmarkController {
 
 	// 특정 시도의 랜드마크 리스트 반환
 	@GetMapping("/byAdm/{admCode}")
-	public ResponseEntity<List<LandmarkResponse>> getLandmarksByAdmCode(@PathVariable String admCode) {
+	public ApiResponse<List<LandmarkResponse>> getLandmarksByAdmCode(@PathVariable String admCode) {
 		List<LandmarkResponse> landmarks = landmarkService.getLandmarksByAdmCode(admCode);
-		return ResponseEntity.ok(landmarks);
+		return ApiResponse.success(landmarks);
 	}
 
 	// 랜드마크 id로 랜드마크 래스터 데이터 조회
 	@GetMapping("/{landmarkId}/rasters")
-	public ResponseEntity<List<LandmarkRasterResponse>> getRastersByLandmarkId(@PathVariable Integer landmarkId) {
+	public ApiResponse<List<LandmarkRasterResponse>> getRastersByLandmarkId(@PathVariable Integer landmarkId) {
 		List<LandmarkRasterResponse> rasters = rasterService.getRastersByLandmarkId(landmarkId);
-		return ResponseEntity.ok(rasters);
+		return ApiResponse.success(rasters);
 	}
-
 }

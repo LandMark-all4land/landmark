@@ -1,23 +1,35 @@
 package dev.group2.landmark_be.map.entity;
 
+import org.locationtech.jts.geom.Point;
+
 import jakarta.persistence.*;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 @Entity
-@Table(name = "landmark")
+@Table(name = "landmark", schema = "app")
 @Getter
-@Setter
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
+@Builder
 public class Landmark {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Integer id;
 
-	private String province;     // 도
-	private String name;         // 이름
-	private String address;      // 도로명주소
-	private double latitude;     // 위도
-	private double longitude;    // 경도
+	@Column(name = "name", nullable = false, columnDefinition = "TEXT")
+	private String name;
+
+	@Column(name = "address", length = 300)
+	private String address;
+
+	@Column(name = "geom", nullable = false)
+	private Point geom;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "adm_code", referencedColumnName = "adm_code")
+	private AdmBoundary admBoundary;
 }

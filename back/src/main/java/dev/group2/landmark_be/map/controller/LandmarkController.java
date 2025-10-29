@@ -1,10 +1,14 @@
 package dev.group2.landmark_be.map.controller;
-import dev.group2.landmark_be.map.dto.LandmarkDto;
+import dev.group2.landmark_be.map.dto.response.LandmarkDto;
+import dev.group2.landmark_be.map.dto.response.LandmarkRasterResponse;
+import dev.group2.landmark_be.map.dto.response.LandmarkResponse;
 import dev.group2.landmark_be.map.entity.Landmark;
 import dev.group2.landmark_be.map.repository.LandmarkRepository;
+import dev.group2.landmark_be.map.service.LandmarkRasterService;
 import dev.group2.landmark_be.map.service.LandmarkService;
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,10 +19,10 @@ import java.util.Map;
 @RequestMapping("/api/landmarks")
 @RequiredArgsConstructor
 public class LandmarkController {
+
 	private final LandmarkRepository landmarkRepository;
 	private final LandmarkService landmarkService;
-
-
+	private final LandmarkRasterService rasterService;
 
 	// 전체 랜드마크 조회
 	@GetMapping
@@ -28,11 +32,28 @@ public class LandmarkController {
 
 	// 단일 랜드마크 조회
 	@GetMapping("/{id}")
-	public Landmark getLandmarkById(@PathVariable Long id) {
-		return landmarkRepository.findById(id).orElse(null);
+	public ResponseEntity<LandmarkResponse> getLandmarkById(@PathVariable Integer id) {
+		LandmarkResponse landmarkResponse = landmarkService.getLandmarkById(id);
+		return ResponseEntity.ok(landmarkResponse);
 	}
-	@GetMapping("/grouped")
-	public Map<String, List<LandmarkDto>> getGroupedLandmarks() {
-		return landmarkService.getLandmarksGroupedByProvince();
+
+	// @GetMapping("/grouped")
+	// public Map<String, List<LandmarkDto>> getGroupedLandmarks() {
+	// 	return landmarkService.getLandmarksGroupedByProvince();
+	// }
+
+	// 특정 시도의 랜드마크 리스트 반환
+	@GetMapping("/byAdm/{admCode}")
+	public ResponseEntity<List<LandmarkResponse>> getLandmarksByAdmCode(@PathVariable String admCode) {
+		List<LandmarkResponse> landmarks = landmarkService.getLandmarksByAdmCode(admCode);
+		return ResponseEntity.ok(landmarks);
 	}
+
+	// 랜드마크 id로 랜드마크 래스터 데이터 조회
+	@GetMapping("/{landmarkId}/rasters")
+	public ResponseEntity<List<LandmarkRasterResponse>> getRastersByLandmarkId(@PathVariable Integer landmarkId) {
+		List<LandmarkRasterResponse> rasters = rasterService.getRastersByLandmarkId(landmarkId);
+		return ResponseEntity.ok(rasters);
+	}
+
 }

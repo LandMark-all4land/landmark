@@ -34,8 +34,16 @@ dependencies {
 	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+	implementation 'org.hibernate.orm:hibernate-spatial:6.5.2.Final'	// geometry 타입을 JPA에서 사용하기 위해
+	implementation 'org.wololo:jts2geojson:0.16.1' // 단방향 변환 유틸(가볍고 간단)
 }
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+// 도커 이미지 빌드 시 필요
+tasks.named('bootBuildImage') {
+	imageName = "all4land/landmark-backend:${version}"
 }

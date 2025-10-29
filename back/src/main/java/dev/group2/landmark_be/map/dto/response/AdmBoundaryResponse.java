@@ -5,7 +5,7 @@ import org.locationtech.jts.geom.MultiPolygon;
 public record AdmBoundaryResponse(
 	String admCode,
 	String admName,
-	MultiPolygon geom,
+	String geoJson,
 	Short level
 ) {
 }

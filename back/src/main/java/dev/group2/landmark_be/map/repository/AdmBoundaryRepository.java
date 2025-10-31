@@ -32,5 +32,6 @@ public interface AdmBoundaryRepository extends JpaRepository<AdmBoundary, String
 		""", nativeQuery = true)
 	List<AdmBoundarySimplifiedProjection> findAllSimplifiedBoundaries(@Param("tolerance") Double tolerance);
 
-	// tolerance: 오차 허용 거리, 상세 뷰를 위해서는 0.0001정도로 정밀하게 잡는 게 좋지만, 전체 뷰와 속도를 위해서 0.005로 설정
+	// tolerance: 오차 허용 거리,
+	// 상세 뷰를 위해서는 0.0001정도로 정밀하게 잡는 게 좋지만, 전체 뷰와 속도를 위해서 0.005로 설정
 }

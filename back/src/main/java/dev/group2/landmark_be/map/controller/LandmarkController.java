@@ -7,9 +7,13 @@ import dev.group2.landmark_be.map.entity.Landmark;
 import dev.group2.landmark_be.map.repository.LandmarkRepository;
 import dev.group2.landmark_be.map.service.LandmarkRasterService;
 import dev.group2.landmark_be.map.service.LandmarkService;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,6 +23,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/landmarks")
 @RequiredArgsConstructor
+@Validated
 public class LandmarkController {
 
 	private final LandmarkRepository landmarkRepository;
@@ -32,7 +37,7 @@ public class LandmarkController {
 	}
 
 	// 단일 랜드마크 조회
-	@GetMapping("/{id}")
+	@GetMapping("/{landmarkId}")
 	public ApiResponse<LandmarkResponse> getLandmarkById(@PathVariable Integer id) {
 		LandmarkResponse landmarkResponse = landmarkService.getLandmarkById(id);
 		return ApiResponse.success(landmarkResponse);
@@ -51,9 +56,12 @@ public class LandmarkController {
 	}
 
 	// 랜드마크 id로 랜드마크 래스터 데이터 조회
-	@GetMapping("/{landmarkId}/rasters")
-	public ApiResponse<List<LandmarkRasterResponse>> getRastersByLandmarkId(@PathVariable Integer landmarkId) {
-		List<LandmarkRasterResponse> rasters = rasterService.getRastersByLandmarkId(landmarkId);
+	@GetMapping("/{landmarkId}/rasters/")
+	public ApiResponse<List<LandmarkRasterResponse>> getRastersByLandmarkId(
+		@PathVariable Integer landmarkId,
+		@RequestParam @NotNull @Min(2000) Integer year,
+		@RequestParam @NotNull @Min(1) @Max(12) Integer month) {
+		List<LandmarkRasterResponse> rasters = rasterService.getRastersByLandmarkIdAndMonth(landmarkId, year, month);
 		return ApiResponse.success(rasters);
 	}
 }

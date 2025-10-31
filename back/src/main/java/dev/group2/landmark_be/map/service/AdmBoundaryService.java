@@ -21,7 +21,7 @@ public class AdmBoundaryService {
 	private final AdmBoundaryRepository admBoundaryRepository;
 	private final GeoJSONWriter writer = new GeoJSONWriter();
 
-	// 시도의 레벨값 : 1
+	// 시도 레벨 : 1
 	static final Short SIDO_LEVEL = 1;
 
 	@Transactional(readOnly = true)

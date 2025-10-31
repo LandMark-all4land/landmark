@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import dev.group2.landmark_be.global.exception.BaseException;
 import dev.group2.landmark_be.map.dto.response.AdmBoundarySimplifiedProjection;
 import dev.group2.landmark_be.map.entity.AdmBoundary;
 

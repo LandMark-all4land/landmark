@@ -1,7 +1,7 @@
 package dev.group2.landmark_be.map.dto.response;
 
 public record LandmarkResponse(
-	Integer id,
+	Long id,
 	String name,
 	String address,
 	String admCode,

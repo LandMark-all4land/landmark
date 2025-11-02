@@ -43,7 +43,7 @@ public class LandmarkService {
 	// 			Collectors.toList()));
 	// }
 
-	public LandmarkResponse getLandmarkById(Integer id) {
+	public LandmarkResponse getLandmarkById(Long id) {
 		Landmark landmark = landmarkRepository.findByIdWithAdmBoundary(id)
 			.orElseThrow(() -> new LandmarkNotFoundException(ErrorCode.LANDMARK_NOT_FOUND));
 		return convertToResponse(landmark);

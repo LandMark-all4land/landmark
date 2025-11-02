@@ -3,8 +3,8 @@ package dev.group2.landmark_be.map.dto.response;
 import java.math.BigDecimal;
 
 public record RasterSimplifiedProjection(
-	Integer id,
-	Integer landmarkId,
+	Long id,
+	Long landmarkId,
 	String indexType,
 	Integer year,
 	Integer month,

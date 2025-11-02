@@ -18,16 +18,16 @@ public interface LandmarkRasterRepository extends JpaRepository<LandmarkRaster, 
 	@Query(value = """
 		SELECT
 			r.id,
-			r.landmark_id,
-			r.index_type,
+			r.landmark_id as landmarkId,
+			r.index_type as indexType,
 			r.year,
 			r.month,
-			r.s3_path,
-			r.val_mean,
-			r.val_min,
-			r.val_max,
-			r.val_stddev,
-			ST_AsGeoJSON(ST_Simplify(r.geom, :tolerance)) as geom_json
+			r.s3_path as s3Path,
+			r.val_mean as valMean,
+			r.val_min as valMin,
+			r.val_max as valMax,
+			r.val_stddev as valStddev,
+			ST_AsGeoJSON(ST_Simplify(r.geom, :tolerance)) as geomJson
 		FROM
 			app.landmark_raster r
 		WHERE

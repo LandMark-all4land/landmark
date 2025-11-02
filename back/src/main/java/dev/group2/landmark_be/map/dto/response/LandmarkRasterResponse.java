@@ -5,8 +5,8 @@ import java.math.BigDecimal;
 import org.locationtech.jts.geom.Polygon;
 
 public record LandmarkRasterResponse(
-	Integer id,
-	Integer landmarkId,
+	Long id,
+	Long landmarkId,
 	String indexType,	// NDVI, NDMI
 	Integer year,
 	Integer month,

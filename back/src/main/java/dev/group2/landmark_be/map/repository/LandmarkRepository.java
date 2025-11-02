@@ -29,7 +29,7 @@ public interface LandmarkRepository extends JpaRepository<Landmark, Integer> {
 		JOIN FETCH l.admBoundary 
 		WHERE l.id = :id
 		""")
-	Optional<Landmark> findByIdWithAdmBoundary(@Param("id") Integer id);
+	Optional<Landmark> findByIdWithAdmBoundary(@Param("id") Long id);
 
 	// 랜드마크 이름으로 직접 검색
 	List<Landmark> findByNameContainingIgnoreCase(String name);

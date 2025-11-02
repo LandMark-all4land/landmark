@@ -38,7 +38,7 @@ public class LandmarkController {
 
 	// 단일 랜드마크 조회
 	@GetMapping("/{landmarkId}")
-	public ApiResponse<LandmarkResponse> getLandmarkById(@PathVariable Integer id) {
+	public ApiResponse<LandmarkResponse> getLandmarkById(@PathVariable("landmarkId") Long id) {
 		LandmarkResponse landmarkResponse = landmarkService.getLandmarkById(id);
 		return ApiResponse.success(landmarkResponse);
 	}

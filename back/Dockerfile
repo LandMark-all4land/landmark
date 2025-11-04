@@ -1,17 +1,15 @@
-# 1. 빌드: JAR 파일만 생성
+# 빌드: JAR 파일만 생성
 FROM eclipse-temurin:17-jdk-alpine AS builder
 
 # 프로젝트 JAR 파일을 빌드 (Gradle의 bootJar 태스크를 사용한다고 가정)
 WORKDIR /app
 COPY build.gradle settings.gradle ./
 COPY src ./src
-# build.gradle에 bootBuildImage 태스크가 있지만, 여기서는 수동 빌드 명령 사용
-# `./gradlew bootJar` 실행하여 JAR 파일 생성
 RUN ./gradlew bootJar --no-daemon
 
 
-# 2. 실행: JRE 환경에서 JAR 파일 실행
-FROM openjdk:17-jre-slim
+# 실행: JRE 환경에서 JAR 파일 실행
+FROM eclipse-temurin:17-jre-alpine
 
 # Timezone 설정 (서버 로그 시간)
 ENV TZ Asia/Seoul

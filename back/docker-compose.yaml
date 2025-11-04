@@ -25,8 +25,8 @@ services:
     environment:
       - GEOSERVER_AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - GEOSERVER_AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      # geoserver 가 사용할 수 있는 JVM 최대 힙 메모리 크기(1기가), 데이터 디렉토리 지정
-      - JAVA_OPTS="-Xmx1024m -DGEOSERVER_DATA_DIR=/opt/geoserver_data"
+
+    entrypoint: [ "/bin/bash", "/scripts/entrypoint.sh", "-Xmx1024m" ]
 
     # geoserver 설정 파일 사라지지 않도록 저장
     volumes:

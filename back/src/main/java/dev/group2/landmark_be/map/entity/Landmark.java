@@ -18,7 +18,7 @@ import lombok.NoArgsConstructor;
 public class Landmark {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Integer id;
+	private Long id;
 
 	@Column(name = "name", nullable = false, columnDefinition = "TEXT")
 	private String name;

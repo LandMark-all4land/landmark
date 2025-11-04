@@ -1,9 +1,9 @@
 package dev.group2.landmark_be.map.dto.response;
 
-public record AdmBoundaryResponse(
+public record AdmBoundarySimplifiedProjection(
 	String admCode,
 	String admName,
-	String geoJson,
-	Short level
+	Short level,
+	String geomJson
 ) {
 }

@@ -1,12 +1,11 @@
 package dev.group2.landmark_be.map.service;
 
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.locationtech.jts.geom.Point;
 import org.springframework.stereotype.Service;
-import java.util.TreeMap;
+import org.wololo.jts2geojson.GeoJSONWriter;
 
 import dev.group2.landmark_be.global.exception.AdmBoundaryNotFoundException;
 import dev.group2.landmark_be.global.exception.ErrorCode;
@@ -25,6 +24,7 @@ public class LandmarkService {
 
 	private final LandmarkRepository landmarkRepository;
 	private final AdmBoundaryRepository admBoundaryRepository;
+	private final GeoJSONWriter writer = new GeoJSONWriter();
 
 	// public Map<String, List<LandmarkDto>> getLandmarksGroupedByProvince() {
 	// 	List<Landmark> landmarks = landmarkRepository.findAllByOrderByProvinceAscNameAsc();
@@ -43,31 +43,36 @@ public class LandmarkService {
 	// 			Collectors.toList()));
 	// }
 
-	public LandmarkResponse getLandmarkById(Integer id) {
-		Landmark landmark = landmarkRepository.findById(id)
+	public LandmarkResponse getLandmarkById(Long id) {
+		Landmark landmark = landmarkRepository.findByIdWithAdmBoundary(id)
 			.orElseThrow(() -> new LandmarkNotFoundException(ErrorCode.LANDMARK_NOT_FOUND));
 		return convertToResponse(landmark);
 	}
 
 	public List<LandmarkResponse> getLandmarksByAdmCode(String admCode) {
-		AdmBoundary admBoundary = admBoundaryRepository.findByAdmCode(admCode)
-			.orElseThrow(() -> new AdmBoundaryNotFoundException(ErrorCode.ADM_BOUNDARY_NOT_FOUND));
-		List<Landmark> landmarks = landmarkRepository.findAllByAdmBoundary(admBoundary);
+		if(!admBoundaryRepository.existsById(admCode)) {
+			throw new AdmBoundaryNotFoundException(ErrorCode.ADM_BOUNDARY_NOT_FOUND);
+		}
+		List<Landmark> landmarks = landmarkRepository.findAllByAdmCodeWithAdmBoundary(admCode);
+		if(landmarks.isEmpty()) {
+			return List.of();
+		}
 		return landmarks.stream()
 			.map(this::convertToResponse)
 			.collect(Collectors.toList());
 	}
 
-	public LandmarkResponse convertToResponse(Landmark landmark) {
-		AdmBoundary admBoundary = landmark.getAdmBoundary();
-		Point point = landmark.getGeom();
+	public LandmarkResponse convertToResponse(Landmark entity) {
+		String geomJson = writer.write(entity.getGeom()).toString();
+		AdmBoundary admBoundary = entity.getAdmBoundary();
+		Point point = entity.getGeom();
 		return new LandmarkResponse(
-			landmark.getId(),
-			landmark.getName(),
-			landmark.getAddress(),
+			entity.getId(),
+			entity.getName(),
+			entity.getAddress(),
 			admBoundary.getAdmCode(),
 			admBoundary.getAdmName(),
-			point,
+			geomJson,
 			point.getY(),	// 위도
 			point.getX()	// 경도
 		);

@@ -1,5 +1,8 @@
 package dev.group2.landmark_be.global.exception;
 
+import lombok.Getter;
+
+@Getter
 public class BaseException extends RuntimeException {
 	private final ErrorCode errorCode;
 

@@ -23,8 +23,8 @@ services:
       # geoserver 포트는 컨테이너 내부적으로 8080 이지만, 백엔드와 충돌 피하기 위해 외부적으로 8082 포트로 매핑
       - "8082:8080"
     environment:
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - GEOSERVER_AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - GEOSERVER_AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_REGION=ap-northeast-2
 
     entrypoint: [ "/bin/bash", "/scripts/entrypoint.sh", "-Xmx1024m" ]

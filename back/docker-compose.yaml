@@ -18,7 +18,7 @@ services:
   # GeoServer 컨테이너 (PostGIS, S3 래스터 데이터)
   geoserver:
     container_name: geoserver
-    image: osgeo/geoserver:2.24.4 # 안정적인 OSGeo GeoServer 이미지 사용
+    image: kartoza/geoserver:2.24.4
     ports:
       # geoserver 포트는 컨테이너 내부적으로 8080 이지만, 백엔드와 충돌 피하기 위해 외부적으로 8082 포트로 매핑
       - "8082:8080"

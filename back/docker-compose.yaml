@@ -23,11 +23,11 @@ services:
       # geoserver 포트는 컨테이너 내부적으로 8080 이지만, 백엔드와 충돌 피하기 위해 외부적으로 8082 포트로 매핑
       - "8082:8080"
     environment:
-      - GEOSERVER_AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - GEOSERVER_AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - AWS_REGION=ap-northeast-2
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - GEOSERVER_S3_BUCKET_NAME=${S3_BUCKET_NAME}
 
-    entrypoint: [ "/bin/bash", "/scripts/entrypoint.sh", "-Xmx1024m" ]
+    entrypoint: [ "/bin/bash", "/scripts/entrypoint.sh", "-Xmx1024m", "-DGEOSERVER_DATA_DIR=/opt/geoserver_data" ]
 
     # geoserver 설정 파일 사라지지 않도록 저장
     volumes:

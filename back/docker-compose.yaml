@@ -22,16 +22,24 @@ services:
     ports:
       # geoserver 포트는 컨테이너 내부적으로 8080 이지만, 백엔드와 충돌 피하기 위해 외부적으로 8082 포트로 매핑
       - "8082:8080"
+    env_file:
+      - .env
     environment:
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - AWS_REGION=ap-northeast-2
-      - GEOSERVER_S3_BUCKET=${S3_BUCKET_NAME}
-      - GEOSERVER_S3_REGION=ap-northeast-2
-      - GEOSERVER_S3_ACCESS_KEY=${AWS_ACCESS_KEY_ID}
-      - GEOSERVER_S3_SECRET_KEY=${AWS_SECRET_ACCESS_KEY}
-
-    entrypoint: [ "/bin/bash", "/scripts/entrypoint.sh", "-Xmx1024m", "-DGEOSERVER_DATA_DIR=/opt/geoserver_data" ]
+      - INITIAL_MEMORY=512m
+      - MAXIMUM_MEMORY=1024m
+      - COMMUNITY_EXTENSIONS=s3-geotiff-plugin,cog-s3-plugin
+      - S3_ALIAS=aws
+      - S3_SERVER_URL=https://s3.ap-northeast-2.amazonaws.com
+      - S3_USERNAME=${AWS_ACCESS_KEY_ID}
+      - S3_PASSWORD=${AWS_SECRET_ACCESS_KEY}
+#      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+#      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+#      - AWS_REGION=ap-northeast-2
+#      - GEOSERVER_S3_BUCKET=${S3_BUCKET_NAME}
+#      - GEOSERVER_S3_REGION=ap-northeast-2
+#      - GEOSERVER_S3_ACCESS_KEY=${AWS_ACCESS_KEY_ID}
+#      - GEOSERVER_S3_SECRET_KEY=${AWS_SECRET_ACCESS_KEY}
+#    entrypoint: [ "/bin/bash", "/scripts/entrypoint.sh", "-Xmx1024m", "-DGEOSERVER_DATA_DIR=/opt/geoserver_data" ]
 
     volumes:
       - /home/ubuntu/.secrets/aws-credentials:/root/.aws/credentials:ro

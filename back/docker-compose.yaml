@@ -27,11 +27,12 @@ services:
     environment:
       - INITIAL_MEMORY=512m
       - MAXIMUM_MEMORY=1024m
-      - COMMUNITY_EXTENSIONS=s3-geotiff-plugin,cog-s3-plugin
+      - COMMUNITY_EXTENSIONS=s3-geotiff-plugin
       - S3_ALIAS=aws
       - S3_SERVER_URL=https://s3.ap-northeast-2.amazonaws.com
       - S3_USERNAME=${AWS_ACCESS_KEY_ID}
       - S3_PASSWORD=${AWS_SECRET_ACCESS_KEY}
+      - JAVA_OPTS=-Ds3.properties.location=/settings/s3.properties
 #      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
 #      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
 #      - AWS_REGION=ap-northeast-2

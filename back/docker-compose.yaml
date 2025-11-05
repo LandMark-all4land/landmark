@@ -33,8 +33,8 @@ services:
 
     entrypoint: [ "/bin/bash", "/scripts/entrypoint.sh", "-Xmx1024m", "-DGEOSERVER_DATA_DIR=/opt/geoserver_data" ]
 
-    # geoserver 설정 파일 사라지지 않도록 저장
     volumes:
+      - /home/ubuntu/.secrets/aws-credentials:/root/.aws/credentials:ro
       - geoserver_data:/opt/geoserver_data
     restart: always
 

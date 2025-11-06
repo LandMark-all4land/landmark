@@ -32,13 +32,15 @@ services:
       - MAXIMUM_MEMORY=2048m
       - COMMUNITY_EXTENSIONS=s3-geotiff-plugin
       - JAVA_OPTS=-Ds3.properties.location=/settings/s3.properties
+      - CATALINA_OPTS=-Ds3.properties.location=/settings/s3.properties
 #      - GEOSERVER_S3_BUCKET=${S3_BUCKET_NAME}
 #      - GEOSERVER_S3_REGION=ap-northeast-2
 #      - GEOSERVER_S3_ACCESS_KEY=${AWS_ACCESS_KEY_ID}
 #      - GEOSERVER_S3_SECRET_KEY=${AWS_SECRET_ACCESS_KEY}
 
     volumes:
-      - geoserver_data:/opt/geoserver_data
+      - geoserver_data:/opt/geoserver/data_dir
+      - ./settings/s3.properties:/settings/s3.properties:ro
     restart: always
 
 # geoserver 설정 정보 저장 공간

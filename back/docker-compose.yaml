@@ -29,10 +29,10 @@ services:
       - INITIAL_MEMORY=512m
       - MAXIMUM_MEMORY=2048m
       - COMMUNITY_EXTENSIONS=s3-geotiff-plugin
-      - JAVA_OPTS=-Ds3.properties.location=/settings/s3.properties
       - AWS_REGION=ap-northeast-2
       - AWS_DEFAULT_REGION=ap-northeast-2
-      - CATALINA_OPTS=-Ds3.properties.location=/settings/s3.properties
+      - JAVA_OPTS=Ds3.properties.location=/settings/s3.properties -DAWS_REGION=ap-northeast-2 -Daws.region=ap-northeast-2
+      - CATALINA_OPTS=-Ds3.properties.location=/settings/s3.properties -DAWS_REGION=ap-northeast-2 -Daws.region=ap-northeast-2
 
     volumes:
       - geoserver_data:/opt/geoserver/data_dir

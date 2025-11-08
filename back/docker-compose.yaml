@@ -14,7 +14,7 @@ services:
       - .env
     restart: unless-stopped
 
-  # GeoServer 컨테이너 (PostGIS, S3 래스터 데이터)
+  # GeoServer 컨테이너
   geoserver:
     container_name: geoserver
     image: kartoza/geoserver:2.24.4
@@ -26,17 +26,13 @@ services:
     environment:
       - S3_ALIAS=aws
       - S3_SERVER_URL=https://s3.ap-northeast-2.amazonaws.com
-#      - S3_USERNAME=${AWS_ACCESS_KEY_ID}
-#      - S3_PASSWORD=${AWS_SECRET_ACCESS_KEY}
       - INITIAL_MEMORY=512m
       - MAXIMUM_MEMORY=2048m
       - COMMUNITY_EXTENSIONS=s3-geotiff-plugin
       - JAVA_OPTS=-Ds3.properties.location=/settings/s3.properties
+      - AWS_REGION=ap-northeast-2
+      - AWS_DEFAULT_REGION=ap-northeast-2
       - CATALINA_OPTS=-Ds3.properties.location=/settings/s3.properties
-#      - GEOSERVER_S3_BUCKET=${S3_BUCKET_NAME}
-#      - GEOSERVER_S3_REGION=ap-northeast-2
-#      - GEOSERVER_S3_ACCESS_KEY=${AWS_ACCESS_KEY_ID}
-#      - GEOSERVER_S3_SECRET_KEY=${AWS_SECRET_ACCESS_KEY}
 
     volumes:
       - geoserver_data:/opt/geoserver/data_dir

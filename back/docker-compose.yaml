@@ -24,15 +24,23 @@ services:
     env_file:
       - .env
     environment:
-      - S3_ALIAS=aws
-      - S3_SERVER_URL=https://s3.ap-northeast-2.amazonaws.com
-      - INITIAL_MEMORY=512m
-      - MAXIMUM_MEMORY=2048m
-      - COMMUNITY_EXTENSIONS=s3-geotiff-plugin
-      - AWS_REGION=ap-northeast-2
-      - AWS_DEFAULT_REGION=ap-northeast-2
-      - JAVA_OPTS=Ds3.properties.location=/settings/s3.properties -DAWS_REGION=ap-northeast-2 -Daws.region=ap-northeast-2
-      - CATALINA_OPTS=-Ds3.properties.location=/settings/s3.properties -DAWS_REGION=ap-northeast-2 -Daws.region=ap-northeast-2
+      S3_ALIAS: aws
+      S3_SERVER_URL: https://s3.ap-northeast-2.amazonaws.com
+      INITIAL_MEMORY: 512m
+      MAXIMUM_MEMORY: 2048m
+      COMMUNITY_EXTENSIONS: s3-geotiff-plugin
+      AWS_REGION: ap-northeast-2
+      AWS_DEFAULT_REGION: ap-northeast-2
+      JAVA_OPTS: >-
+          -Ds3.properties.location=/settings/s3.properties
+          -DAWS_REGION=ap-northeast-2
+          -Daws.region=ap-northeast-2
+          -Daws.s3.pathStyleAccess=true
+      CATALINA_OPTS: >-
+          -Ds3.properties.location=/settings/s3.properties
+          -DAWS_REGION=ap-northeast-2
+          -Daws.region=ap-northeast-2
+          -Daws.s3.pathStyleAccess=true
 
     volumes:
       - geoserver_data:/opt/geoserver/data_dir

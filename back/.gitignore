@@ -42,4 +42,5 @@ out/
 **/.DS_Store
 **/._.DS_Store
 
-src/main/resources/application.yml
+.env
+application-dev.yaml

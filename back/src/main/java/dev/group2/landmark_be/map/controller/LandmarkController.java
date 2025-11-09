@@ -19,7 +19,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
-@CrossOrigin(origins = "http://localhost:5173") // ✅ React 개발 서버 허용
 @RestController
 @RequestMapping("/api/landmarks")
 @RequiredArgsConstructor

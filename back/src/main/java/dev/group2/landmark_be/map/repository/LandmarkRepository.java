@@ -33,6 +33,4 @@ public interface LandmarkRepository extends JpaRepository<Landmark, Integer> {
 
 	// 랜드마크 이름으로 직접 검색
 	List<Landmark> findByNameContainingIgnoreCase(String name);
-
-	// List<Landmark> findAllByOrderByProvinceAscNameAsc();
 }

@@ -1,9 +1,7 @@
 package dev.group2.landmark_be.map.controller;
 import dev.group2.landmark_be.global.dto.ApiResponse;
-import dev.group2.landmark_be.map.dto.response.LandmarkDto;
 import dev.group2.landmark_be.map.dto.response.LandmarkRasterResponse;
 import dev.group2.landmark_be.map.dto.response.LandmarkResponse;
-import dev.group2.landmark_be.map.entity.Landmark;
 import dev.group2.landmark_be.map.repository.LandmarkRepository;
 import dev.group2.landmark_be.map.service.LandmarkRasterService;
 import dev.group2.landmark_be.map.service.LandmarkService;
@@ -12,7 +10,6 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 
-import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -31,8 +28,8 @@ public class LandmarkController {
 
 	// 전체 랜드마크 조회
 	@GetMapping
-	public List<Landmark> getAllLandmarks() {
-		return landmarkRepository.findAll();
+	public ApiResponse<List<LandmarkResponse>> getAllLandmarks() {
+		return ApiResponse.success(landmarkService.findAllLandmarks());
 	}
 
 	// 단일 랜드마크 조회
@@ -41,11 +38,6 @@ public class LandmarkController {
 		LandmarkResponse landmarkResponse = landmarkService.getLandmarkById(id);
 		return ApiResponse.success(landmarkResponse);
 	}
-
-	// @GetMapping("/grouped")
-	// public Map<String, List<LandmarkDto>> getGroupedLandmarks() {
-	// 	return landmarkService.getLandmarksGroupedByProvince();
-	// }
 
 	// 특정 시도의 랜드마크 리스트 반환
 	@GetMapping("/byAdm/{admCode}")

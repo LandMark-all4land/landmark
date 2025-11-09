@@ -5,12 +5,12 @@ import java.util.stream.Collectors;
 
 import org.locationtech.jts.geom.Point;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.wololo.jts2geojson.GeoJSONWriter;
 
 import dev.group2.landmark_be.global.exception.AdmBoundaryNotFoundException;
 import dev.group2.landmark_be.global.exception.ErrorCode;
 import dev.group2.landmark_be.global.exception.LandmarkNotFoundException;
-import dev.group2.landmark_be.map.dto.response.LandmarkDto;
 import dev.group2.landmark_be.map.dto.response.LandmarkResponse;
 import dev.group2.landmark_be.map.entity.AdmBoundary;
 import dev.group2.landmark_be.map.entity.Landmark;
@@ -26,22 +26,13 @@ public class LandmarkService {
 	private final AdmBoundaryRepository admBoundaryRepository;
 	private final GeoJSONWriter writer = new GeoJSONWriter();
 
-	// public Map<String, List<LandmarkDto>> getLandmarksGroupedByProvince() {
-	// 	List<Landmark> landmarks = landmarkRepository.findAllByOrderByProvinceAscNameAsc();
-	//
-	// 	return landmarks.stream()
-	// 		.map(l -> LandmarkDto.builder()
-	// 			.id(l.getId())
-	// 			.province(l.getProvince())
-	// 			.name(l.getName())
-	// 			.address(l.getAddress())
-	// 			.latitude(l.getLatitude())
-	// 			.longitude(l.getLongitude())
-	// 			.build())
-	// 		.collect(Collectors.groupingBy(LandmarkDto::getProvince,
-	// 			TreeMap::new, // 가나다순 정렬
-	// 			Collectors.toList()));
-	// }
+	@Transactional(readOnly = true)
+	public List<LandmarkResponse> findAllLandmarks() {
+		List<Landmark> landmarks = landmarkRepository.findAll();
+		return landmarks.stream()
+			.map(this::convertToResponse)
+			.collect(Collectors.toList());
+	}
 
 	public LandmarkResponse getLandmarkById(Long id) {
 		Landmark landmark = landmarkRepository.findByIdWithAdmBoundary(id)

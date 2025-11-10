@@ -9,7 +9,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8080:8080"
+      - "8081:8080"
     env_file:
       - .env
     restart: unless-stopped
@@ -24,6 +24,12 @@ services:
     env_file:
       - .env
     environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME}
       S3_ALIAS: aws
 #      S3_SERVER_URL: https://s3.ap-northeast-2.amazonaws.com
       INITIAL_MEMORY: 512m

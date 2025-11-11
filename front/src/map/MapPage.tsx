@@ -16,6 +16,38 @@ import { fetchAdmBoundaries } from "./api/boundaryApi";
 import { MONTH_PRESETS, type MonthPreset } from "./constants/monthPresets";
 import RasterDashboard from "./components/RasterDashboard";
 
+// 도넛 차트용 recharts
+import { PieChart, Pie, Cell } from "recharts";
+
+// ---- 산불 위험도 계산 함수 (원래 Dashboard 로직 그대로) ----
+interface FireRiskResult {
+  percentage: number; // 0 ~ 100
+  isSafe: boolean;
+  diffMaxMin: number;
+  diffMean: number;
+}
+
+function computeFireRisk(
+  ndvi: RasterStat | null,
+  ndmi: RasterStat | null
+): FireRiskResult | null {
+  if (!ndvi || !ndmi) return null;
+
+  const diffMaxMin = ndvi.valMax - ndmi.valMin;
+  const diffMean = ndvi.valMean - ndmi.valMean;
+
+  const normalized = Math.max(0, Math.min(1, (diffMaxMin + 2) / 4));
+  const percentage = Math.round(normalized * 100);
+  const isSafe = diffMaxMin < diffMean;
+
+  return {
+    percentage,
+    isSafe,
+    diffMaxMin,
+    diffMean,
+  };
+}
+
 const MapPage: React.FC = () => {
   // ===== 행정경계 / 랜드마크 / 선택 상태 =====
   const [boundaries, setBoundaries] = useState<AdmBoundary[]>([]);
@@ -38,6 +70,10 @@ const MapPage: React.FC = () => {
   const [rasterError, setRasterError] = useState<string | null>(null);
   const [ndvi, setNdvi] = useState<RasterStat | null>(null);
   const [ndmi, setNdmi] = useState<RasterStat | null>(null);
+
+  const hasNdvi = !!ndvi;
+  const hasNdmi = !!ndmi;
+  const fireRisk = computeFireRisk(ndvi, ndmi);
 
   // -----------------------------
   //  행정경계 + 랜드마크 동시 조회
@@ -127,7 +163,6 @@ const MapPage: React.FC = () => {
   //  월 버튼 클릭 / 래스터 조회
   // -----------------------------
   const handleMonthClick = (preset: MonthPreset) => {
-    // 같은 월 다시 클릭 → 토글 해제
     if (
       selectedMonth?.year === preset.year &&
       selectedMonth?.month === preset.month
@@ -141,7 +176,7 @@ const MapPage: React.FC = () => {
     setSelectedMonth(preset);
   };
 
-  // 래스터 데이터 조회 (selectedLandmark + selectedMonth 바뀔 때마다)
+  // 래스터 데이터 조회
   useEffect(() => {
     if (!selectedLandmark || !selectedMonth) {
       setNdvi(null);
@@ -156,15 +191,12 @@ const MapPage: React.FC = () => {
         setRasterError(null);
 
         const { year, month } = selectedMonth;
-
-        // ✅ year + month 둘 다 넘김 (백엔드 시그니처와 맞춤)
         const rows = await fetchLandmarkRasters(
           selectedLandmark.id!,
           year,
           month
         );
 
-        // 백엔드에서 이미 해당 연도/월로 필터링해서 줌
         const ndviRow = rows.find((r) => r.indexType === "NDVI") ?? null;
         const ndmiRow = rows.find((r) => r.indexType === "NDMI") ?? null;
 
@@ -215,13 +247,207 @@ const MapPage: React.FC = () => {
   );
 
   // -----------------------------
+  //  산불 위험도 카드 렌더링 (도넛 차트)
+  // -----------------------------
+  const renderFireRiskCard = () => {
+    // 상태별 안내 문구
+    if (!selectedLandmark) {
+      return (
+        <div
+          style={{
+            fontSize: 13,
+            color: "#6b7280",
+            textAlign: "center",
+            padding: "16px 8px",
+          }}
+        >
+          랜드마크를 먼저 선택하세요.
+        </div>
+      );
+    }
+
+    if (!selectedMonth) {
+      return (
+        <div
+          style={{
+            fontSize: 13,
+            color: "#6b7280",
+            textAlign: "center",
+            padding: "16px 8px",
+          }}
+        >
+          조회 월을 선택하면 이 영역에 산불 위험도가 표시됩니다. 🔥
+        </div>
+      );
+    }
+
+    if (rasterLoading) {
+      return (
+        <div
+          style={{
+            fontSize: 13,
+            color: "#6b7280",
+            textAlign: "center",
+            padding: "16px 8px",
+          }}
+        >
+          래스터 데이터를 불러오는 중입니다...
+        </div>
+      );
+    }
+
+    if (rasterError) {
+      return (
+        <div
+          style={{
+            fontSize: 13,
+            color: "#b91c1c",
+            textAlign: "center",
+            padding: "16px 8px",
+          }}
+        >
+          에러: {rasterError}
+        </div>
+      );
+    }
+
+    if (!hasNdvi || !hasNdmi || !fireRisk) {
+      return (
+        <div
+          style={{
+            fontSize: 13,
+            color: "#6b7280",
+            textAlign: "center",
+            padding: "16px 8px",
+          }}
+        >
+          NDMI 데이터가 없어 산불 위험도를 계산할 수 없습니다.
+          <br />
+          NDVI 지수만 참고 가능합니다.
+        </div>
+      );
+    }
+
+    const statusText = fireRisk.isSafe ? "산불 안전 지역" : "산불 위험 지역";
+    const statusEmoji = fireRisk.isSafe ? "🟢" : "🔥";
+
+    const detailLines = fireRisk.isSafe
+      ? [
+          "비교적 안전한 상태입니다.",
+          "지속적인 모니터링을 통해 변화를 관찰하세요.",
+        ]
+      : [
+          "산불에 취약할 수 있는 상태입니다.",
+          "해당지역의 집중 모니터링이 필요합니다."
+      
+        ];
+
+    const percentage = fireRisk.percentage;
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div
+          style={{
+            fontSize: 19,
+            fontWeight: 600,
+            color: "#111827",
+          }}
+        >
+          산불 위험도
+        </div>
+
+        {/* 도넛 차트 영역: 가운데 정렬 */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <div
+            style={{
+              position: "relative",
+              width: 310,
+              height: 120,
+              flexShrink: 0,
+            }}
+          >
+            <PieChart width={310} height={120}>
+              <Pie
+                data={[
+                  { name: "위험도", value: percentage },
+                  { name: "나머지", value: 100 - percentage },
+                ]}
+                startAngle={90}
+                endAngle={-270}
+                innerRadius={42} // 조금 더 얇은 안쪽 반지름
+                outerRadius={59} // 더 큰 바깥 반지름 → 전체 좀 더 크고 두꺼워짐
+                paddingAngle={0}
+                dataKey="value"
+                stroke="none"
+              >
+                <Cell fill={fireRisk.isSafe ? "#22c55e" : "#ef4444"} />
+                <Cell fill="#e5e7eb" />
+              </Pie>
+            </PieChart>
+
+            {/* 가운데 퍼센트 텍스트만 (차트 안 가리도록) */}
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                pointerEvents: "none",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 26,
+                  fontWeight: 700,
+                  color: fireRisk.isSafe ? "#16a34a" : "#dc2626",
+                  lineHeight: 1.1,
+                }}
+              >
+                {percentage}%
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 설명 텍스트: 아이콘/타이틀 + 두 줄 설명 (마지막 줄에 '모니터링이 필요합니다.' 개행) */}
+        <div
+          style={{
+            fontSize: 13,
+            color: "#4b5563",
+            lineHeight: 1.6,
+          }}
+        >
+          <div
+            style={{
+              fontWeight: 600,
+              marginBottom: 4,
+            }}
+          >
+            {statusEmoji} {statusText}
+          </div>
+          <div>{detailLines[0]}</div>
+          <div>{detailLines[1]}</div>
+        </div>
+      </div>
+    );
+  };
+
+  // -----------------------------
   //  렌더링
   // -----------------------------
   return (
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "360px 1fr",
+        gridTemplateColumns: "400px 1fr", // 왼쪽 살짝 넓힘
         height: "100vh",
         backgroundColor: "#f3f4f6",
         overflow: "hidden",
@@ -239,6 +465,7 @@ const MapPage: React.FC = () => {
           overflowY: "auto",
         }}
       >
+        {/* 1) 산불 위험도 카드 (도넛) */}
         <section
           style={{
             backgroundColor: "#ffffff",
@@ -247,49 +474,20 @@ const MapPage: React.FC = () => {
             boxShadow: "0 10px 25px rgba(15, 23, 42, 0.06)",
             display: "flex",
             flexDirection: "column",
-            gap: "8px",
+            minHeight: 250,
           }}
         >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              fontWeight: 600,
-              fontSize: "15px",
-              color: "#111827",
-            }}
-          >
-            <span
-              style={{
-                width: 24,
-                height: 24,
-                borderRadius: "999px",
-                background:
-                  "linear-gradient(135deg, rgba(248,113,113,1), rgba(239,68,68,1))",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#fff",
-                fontSize: "14px",
-              }}
-            >
-              🔥
-            </span>
-            <span>TOP 3 산불 위험성</span>
-          </div>
-          <p style={{ margin: 0, fontSize: "12px", color: "#6b7280" }}>
-            나중에 실제 지표 / 리스트 들어갈 자리.
-          </p>
+          {renderFireRiskCard()}
         </section>
 
+        {/* 2) NDVI / NDMI 차트 카드 */}
         <section
           style={{
             backgroundColor: "#ffffff",
             borderRadius: "16px",
             padding: "20px",
             boxShadow: "0 10px 25px rgba(15, 23, 42, 0.06)",
-            minHeight: "260px",
+            minHeight: "300px",
             display: "flex",
             flexDirection: "column",
           }}

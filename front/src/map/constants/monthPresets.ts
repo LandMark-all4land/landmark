@@ -6,6 +6,7 @@ export interface MonthPreset {
 
 export const MONTH_PRESETS: MonthPreset[] = [
   { label: "24년 1월", year: 2024, month: 1 },
+  { label: "24년 2월", year: 2024, month: 2 },
   { label: "24년 3월", year: 2024, month: 3 },
   { label: "24년 4월", year: 2024, month: 4 },
   { label: "24년 5월", year: 2024, month: 5 },

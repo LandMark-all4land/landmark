@@ -5,6 +5,7 @@ import View from "ol/View";
 import TileLayer from "ol/layer/Tile";
 import XYZ from "ol/source/XYZ";
 import TileWMS from "ol/source/TileWMS";
+import GeoTIFF from "ol/source/GeoTIFF";
 import { fromLonLat } from "ol/proj";
 import VectorSource from "ol/source/Vector";
 import VectorLayer from "ol/layer/Vector";
@@ -14,11 +15,13 @@ import Overlay from "ol/Overlay";
 import { defaults as defaultControls } from "ol/control";
 import { Style, Circle as CircleStyle, Fill, Stroke } from "ol/style";
 import type { Landmark } from "../types/Landmark";
+import type { RasterStat } from "../types/RasterStat";
 
 interface MapViewProps {
   landmarks: Landmark[];
   selectedLandmark?: Landmark | null;
   onMarkerClick?: (landmark: Landmark | null) => void;
+  rasterStat?: RasterStat | null;
   initialCenter?: [number, number];
   initialZoom?: number;
 }
@@ -27,6 +30,7 @@ const MapView: React.FC<MapViewProps> = ({
   landmarks,
   selectedLandmark,
   onMarkerClick,
+  rasterStat = null,
   initialCenter = [127.7669, 35.9078],
   initialZoom = 7,
 }) => {
@@ -38,6 +42,33 @@ const MapView: React.FC<MapViewProps> = ({
   const markerLayerRef = useRef(
     new VectorLayer({
       source: markerSourceRef.current,
+    })
+  );
+
+  // ====== GeoTIFF 레이어 ======
+  const rasterLayerRef = useRef(
+    new TileLayer<GeoTIFF>({
+      visible: false,
+      opacity: 0.65,
+    })
+  );
+
+  // ====== GeoTIFF 범위(버퍼) 표시 레이어 ======
+  const rasterFootprintSourceRef = useRef(new VectorSource());
+  const rasterFootprintLayerRef = useRef(
+    new VectorLayer({
+      source: rasterFootprintSourceRef.current,
+      visible: false,
+      style: new Style({
+        stroke: new Stroke({
+          color: "rgba(249, 115, 22, 0.9)",
+          width: 2,
+          lineDash: [8, 6],
+        }),
+        fill: new Fill({
+          color: "rgba(249, 115, 22, 0.15)",
+        }),
+      }),
     })
   );
 
@@ -77,7 +108,13 @@ const MapView: React.FC<MapViewProps> = ({
 
     const map = new Map({
       target: hostRef.current,
-      layers: [base, boundaryLayer, markerLayerRef.current],
+      layers: [
+        base,
+        rasterLayerRef.current,
+        boundaryLayer,
+        rasterFootprintLayerRef.current,
+        markerLayerRef.current,
+      ],
       view: new View({
         center: fromLonLat(initialCenter),
         zoom: initialZoom,
@@ -91,6 +128,7 @@ const MapView: React.FC<MapViewProps> = ({
       map.setTarget(undefined);
       mapRef.current = null;
       markerSourceRef.current.clear();
+      rasterFootprintSourceRef.current.clear();
     };
   }, []);
 
@@ -116,7 +154,129 @@ const MapView: React.FC<MapViewProps> = ({
   }, []);
 
   // -----------------------------
-  // 3) 마커 Feature 생성
+  // 3) 행정경계 Feature 생성
+  // -----------------------------
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !boundaries?.length) return;
+
+    const source = boundarySourceRef.current;
+    source.clear();
+
+    const geojson = new GeoJSON();
+
+    boundaries.forEach((b) => {
+      if (!b.geoJson) return;
+
+      try {
+        // ✅ 문자열일 수도 있으니 파싱
+        const geom =
+          typeof b.geoJson === "string" ? JSON.parse(b.geoJson) : b.geoJson;
+
+        // ✅ 단일 Feature든 MultiPolygon이든 배열로 통일
+        const features = geojson.readFeatures(geom, {
+          dataProjection: "EPSG:4326",
+          featureProjection: "EPSG:3857",
+        });
+
+        // ✅ 각각 Feature에 속성 추가
+        features.forEach((f) => {
+          f.setProperties({
+            admCode: b.admCode,
+            admName: b.admName,
+            level: b.level,
+          });
+        });
+
+        // ✅ 배열 단위로 추가
+        source.addFeatures(features);
+      } catch (err) {
+        console.error("❌ 경계 파싱 오류:", err, b);
+      }
+    });
+  }, [boundaries]);
+
+  // -----------------------------
+  // 3-1) GeoTIFF 타일 갱신
+  // -----------------------------
+  useEffect(() => {
+    const layer = rasterLayerRef.current;
+    if (!layer) return;
+
+    const url = rasterStat?.s3Path ?? null;
+
+    if (!url) {
+      layer.setVisible(false);
+      return;
+    }
+
+    const source = new GeoTIFF({
+      sources: [
+        {
+          url,
+        },
+      ],
+      transition: 0,
+      convertToRGB: true,
+    });
+
+    layer.setSource(source);
+    layer.setVisible(true);
+  }, [rasterStat?.s3Path]);
+
+  // -----------------------------
+  // 3-2) GeoTIFF 버퍼(폴리곤) 갱신
+  // -----------------------------
+  useEffect(() => {
+    const source = rasterFootprintSourceRef.current;
+    const layer = rasterFootprintLayerRef.current;
+    const map = mapRef.current;
+    if (!source || !layer || !map) return;
+
+    source.clear();
+
+    if (!rasterStat?.geom) {
+      layer.setVisible(false);
+      return;
+    }
+
+    const geojson = new GeoJSON();
+    try {
+      const features = geojson.readFeatures(
+        {
+          type: "Feature",
+          geometry: rasterStat.geom,
+          properties: {},
+        },
+        {
+          dataProjection: "EPSG:4326",
+          featureProjection: "EPSG:3857",
+        }
+      );
+
+      if (!features.length) {
+        layer.setVisible(false);
+        return;
+      }
+
+      source.addFeatures(features);
+      layer.setVisible(true);
+
+      const extent = source.getExtent();
+      map.getView().fit(extent, {
+        padding: [80, 80, 80, 80],
+        duration: 600,
+        maxZoom: 16,
+      });
+    } catch (err) {
+      console.error("❌ GeoTIFF 폴리곤 파싱 오류:", err, rasterStat.geom);
+      layer.setVisible(false);
+    }
+  }, [rasterStat]);
+
+  // -----------------------------
+  // 4) 마커 Feature 생성
   // -----------------------------
   useEffect(() => {
     const map = mapRef.current;

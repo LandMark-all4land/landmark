@@ -1,5 +1,7 @@
 export type IndexType = "NDVI" | "NDMI";
 
+import type { GeoJSONGeometry } from "ol/format/GeoJSON";
+
 export interface RasterStat {
   landmarkId: number;
   indexType: IndexType;
@@ -10,8 +12,5 @@ export interface RasterStat {
   valMin: number;
   valMax: number;
   valStddev: number;
-  geom: {
-    type: "Polygon";
-    coordinates: number[][][]; // 3km 버퍼 폴리곤
-  };
+  geom: GeoJSONGeometry | null;
 }

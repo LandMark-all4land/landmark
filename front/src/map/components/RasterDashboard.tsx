@@ -1,3 +1,4 @@
+// src/map/components/RasterDashboard.tsx
 import React from "react";
 import type { Landmark } from "../types/Landmark";
 import type { RasterStat } from "../types/RasterStat";
@@ -23,37 +24,94 @@ interface Props {
   error: string | null;
 }
 
-interface FireRiskResult {
-  percentage: number; // 0 ~ 100
-  isSafe: boolean;
-  diffMaxMin: number;
-  diffMean: number;
-}
+// NDVI가 왼쪽, NDMI가 오른쪽
+const ORDER_BY_NAME: Record<string, number> = {
+  NDVI: 0,
+  NDMI: 1,
+};
 
-// NDVI / NDMI 기반 산불 위험도 계산
-function computeFireRisk(
-  ndvi: RasterStat | null,
-  ndmi: RasterStat | null
-): FireRiskResult | null {
-  if (!ndvi || !ndmi) return null;
+// 커스텀 툴팁: NDVI 위, NDMI 아래
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload || payload.length === 0) return null;
 
-  const diffMaxMin = ndvi.valMax - ndmi.valMin;
-  const diffMean = ndvi.valMean - ndmi.valMean;
+  const sorted = [...payload].sort(
+    (a, b) =>
+      (ORDER_BY_NAME[a.name as string] ?? 99) -
+      (ORDER_BY_NAME[b.name as string] ?? 99)
+  );
 
-  // ndvi/ndmi 범위 -1~+1 → diff -2~+2 라고 보고 0~1로 매핑
-  const normalized = Math.max(0, Math.min(1, (diffMaxMin + 2) / 4));
-  const percentage = Math.round(normalized * 100);
+  return (
+    <div
+      style={{
+        background: "#ffffff",
+        border: "1px solid #e5e7eb",
+        borderRadius: 6,
+        padding: "8px 10px",
+        fontSize: 12,
+        color: "#111827",
+      }}
+    >
+      <div style={{ marginBottom: 4, fontWeight: 600 }}>{label}</div>
+      {sorted.map((item) => {
+        // 도넛에서 쓰는 값은 +1 된 값(NDVI_BAR / NDMI_BAR) 이라
+        // 실제 값은 payload.NDVI / payload.NDMI 에서 뽑는다.
+        const key = item.name as "NDVI" | "NDMI";
+        const raw = item.payload?.[key];
+        const value =
+          typeof raw === "number" && raw.toFixed
+            ? raw.toFixed(4)
+            : raw ?? "-";
+        return (
+          <div key={item.dataKey} style={{ color: item.color, marginTop: 2 }}>
+            {item.name} : {value}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
-  // 조건: diffMaxMin < diffMean 이면 안전
-  const isSafe = diffMaxMin < diffMean;
+// 커스텀 범례: NDVI 왼쪽, NDMI 오른쪽
+const CustomLegend = ({ payload }: any) => {
+  if (!payload || payload.length === 0) return null;
 
-  return {
-    percentage,
-    isSafe,
-    diffMaxMin,
-    diffMean,
-  };
-}
+  const sorted = [...payload].sort(
+    (a, b) =>
+      (ORDER_BY_NAME[a.value as string] ?? 99) -
+      (ORDER_BY_NAME[b.value as string] ?? 99)
+  );
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "center",
+        gap: 16,
+        marginTop: 8,
+        fontSize: 12,
+      }}
+    >
+      {sorted.map((entry) => (
+        <div
+          key={entry.dataKey}
+          style={{ display: "flex", alignItems: "center", gap: 4 }}
+        >
+          <span
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: 2,
+              backgroundColor: entry.color,
+            }}
+          />
+          <span style={{ color: "#111827" }}>{entry.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const SHIFT = 1; // -1을 0 높이로 만들기 위해 +1
 
 const RasterDashboard: React.FC<Props> = ({
   landmark,
@@ -63,11 +121,10 @@ const RasterDashboard: React.FC<Props> = ({
   loading,
   error,
 }) => {
-  const fireRisk = computeFireRisk(ndvi, ndmi);
   const hasNdvi = !!ndvi;
   const hasNdmi = !!ndmi;
 
-  // 아직 아무것도 안 골랐을 때
+  // 상태별 안내
   if (!landmark) {
     return (
       <div
@@ -88,14 +145,12 @@ const RasterDashboard: React.FC<Props> = ({
       <div
         style={{
           fontSize: 13,
-          color: "#6b7280",
+          color: "#6b7Aa280",
           textAlign: "center",
           padding: "16px 8px",
         }}
       >
-        조회 월을 선택하면 이 영역에 산불 위험도와
-        <br />
-        NDVI / NDMI 차트가 표시됩니다. 📊
+        조회 월을 선택하면 이 영역에 NDVI / NDMI 차트가 표시됩니다. 📊
       </div>
     );
   }
@@ -130,7 +185,6 @@ const RasterDashboard: React.FC<Props> = ({
     );
   }
 
-  // ✅ 진짜로 둘 다 없을 때만 "없습니다" 문구 띄움
   if (!hasNdvi && !hasNdmi) {
     return (
       <div
@@ -146,41 +200,42 @@ const RasterDashboard: React.FC<Props> = ({
     );
   }
 
-  const monthLabel = selectedMonth.label;
-
-  // fireRisk는 ndvi+ndmi 둘 다 있을 때만 존재
-  const statusText = fireRisk
-    ? fireRisk.isSafe
-      ? "산불 안전 지역"
-      : "산불 위험 지역"
-    : "산불 위험도 계산 불가";
-  const statusEmoji = fireRisk ? (fireRisk.isSafe ? "🟢" : "🔥") : "ℹ️";
-  const statusDetail = fireRisk
-    ? fireRisk.isSafe
-      ? "NDVI와 NDMI 지수 차이가 평균보다 작아 비교적 안전한 상태입니다."
-      : "NDVI는 높고 NDMI는 낮아 산불에 취약할 수 있는 상태입니다. 모니터링이 필요합니다."
-    : "NDMI 데이터가 없어 산불 위험도를 계산할 수 없습니다. NDVI 지수만 참고 가능합니다.";
-
   const chartData = [
     {
       name: "최대",
       NDVI: ndvi?.valMax ?? null,
       NDMI: ndmi?.valMax ?? null,
+      NDVI_BAR:
+        ndvi?.valMax != null ? ndvi.valMax + SHIFT : null,
+      NDMI_BAR:
+        ndmi?.valMax != null ? ndmi.valMax + SHIFT : null,
     },
     {
       name: "최소",
       NDVI: ndvi?.valMin ?? null,
       NDMI: ndmi?.valMin ?? null,
+      NDVI_BAR:
+        ndvi?.valMin != null ? ndvi.valMin + SHIFT : null,
+      NDMI_BAR:
+        ndmi?.valMin != null ? ndmi.valMin + SHIFT : null,
     },
     {
       name: "평균",
       NDVI: ndvi?.valMean ?? null,
       NDMI: ndmi?.valMean ?? null,
+      NDVI_BAR:
+        ndvi?.valMean != null ? ndvi.valMean + SHIFT : null,
+      NDMI_BAR:
+        ndmi?.valMean != null ? ndmi.valMean + SHIFT : null,
     },
     {
       name: "표준편차",
       NDVI: ndvi?.valStddev ?? null,
       NDMI: ndmi?.valStddev ?? null,
+      NDVI_BAR:
+        ndvi?.valStddev != null ? ndvi.valStddev + SHIFT : null,
+      NDMI_BAR:
+        ndmi?.valStddev != null ? ndmi.valStddev + SHIFT : null,
     },
   ];
 
@@ -189,190 +244,57 @@ const RasterDashboard: React.FC<Props> = ({
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: 16,
+        gap: 12,
         height: "100%",
       }}
     >
-      {/* 1) 산불 위험도 카드 */}
       <div
         style={{
-          borderRadius: 12,
-          border: "1px solid #e5e7eb",
-          padding: "14px 16px",
+          fontSize: 19,
+          fontWeight: 600,
+          color: "#111827",
           marginBottom: 4,
         }}
       >
-        <div
-          style={{
-            fontSize: 13,
-            fontWeight: 600,
-            color: "#111827",
-            marginBottom: 8,
-          }}
-        >
-          산불 위험도
-        </div>
-
-        <div
-          style={{
-            display: "flex",
-            gap: 16,
-            alignItems: "center",
-            marginBottom: 8,
-          }}
-        >
-          <div
-            style={{
-              minWidth: 80,
-              textAlign: "center",
-            }}
-          >
-            <div
-              style={{
-                fontSize: 26,
-                fontWeight: 700,
-                color: fireRisk
-                  ? fireRisk.isSafe
-                    ? "#16a34a"
-                    : "#dc2626"
-                  : "#6b7280",
-                lineHeight: 1.1,
-              }}
-            >
-              {fireRisk ? `${fireRisk.percentage}%` : "-"}
-            </div>
-            <div
-              style={{
-                marginTop: 4,
-                fontSize: 13,
-                fontWeight: 600,
-                color: "#111827",
-              }}
-            >
-              {statusEmoji} {statusText}
-            </div>
-          </div>
-
-          <div
-            style={{
-              flex: 1,
-              fontSize: 12,
-              color: "#4b5563",
-              display: "flex",
-              flexDirection: "column",
-              gap: 4,
-            }}
-          >
-            <div>
-              <span
-                style={{
-                  display: "inline-block",
-                  width: 60,
-                  color: "#9ca3af",
-                }}
-              >
-                랜드마크
-              </span>
-              <span>{landmark.name}</span>
-            </div>
-            <div>
-              <span
-                style={{
-                  display: "inline-block",
-                  width: 60,
-                  color: "#9ca3af",
-                }}
-              >
-                기간
-              </span>
-              <span>{monthLabel}</span>
-            </div>
-
-            {fireRisk && (
-              <>
-                <div>
-                  <span
-                    style={{
-                      display: "inline-block",
-                      width: 60,
-                      color: "#9ca3af",
-                    }}
-                  >
-                    지수 차이
-                  </span>
-                  <span>
-                    max(NDVI) - min(NDMI) = {fireRisk.diffMaxMin.toFixed(2)}
-                  </span>
-                </div>
-                <div>
-                  <span
-                    style={{
-                      display: "inline-block",
-                      width: 60,
-                      color: "#9ca3af",
-                    }}
-                  >
-                    평균 차이
-                  </span>
-                  <span>
-                    mean(NDVI) - mean(NDMI) = {fireRisk.diffMean.toFixed(2)}
-                  </span>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-
-        <div
-          style={{
-            fontSize: 11,
-            color: "#6b7280",
-            marginTop: 4,
-          }}
-        >
-          {statusDetail}
-        </div>
+        NDVI / NDMI 지수
       </div>
 
-      {/* 2) NDVI / NDMI 바 차트 */}
-      <div
-        style={{
-          borderRadius: 12,
-          border: "1px solid #e5e7eb",
-          padding: "12px 12px 4px",
-          flex: 1,
-          minHeight: 200,
-        }}
-      >
-        <div
-          style={{
-            fontSize: 13,
-            fontWeight: 600,
-            color: "#111827",
-            marginBottom: 8,
-          }}
-        >
-          NDVI / NDMI 지수
-        </div>
-
-        <div style={{ width: "100%", height: 200 }}>
-          <ResponsiveContainer>
-            <BarChart
-              data={chartData}
-              margin={{ top: 8, right: 8, left: 0, bottom: 4 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis domain={[-1, 1]} />
-              <Tooltip />
-              <Legend />
-              {/* NDVI는 항상 있을 때만 값 들어감 */}
-              {hasNdvi && <Bar dataKey="NDVI" radius={[4, 4, 0, 0]} />}
-              {/* NDMI 있으면 같이 그림 */}
-              {hasNdmi && <Bar dataKey="NDMI" radius={[4, 4, 0, 0]} />}
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+      <div style={{ width: "100%", flex: 1, minHeight: 200 }}>
+        <ResponsiveContainer>
+          <BarChart
+            data={chartData}
+            margin={{ top: 8, right: 8, left: -30, bottom: 0 }}
+          >
+            <CartesianGrid
+              stroke="#e5e7eb"
+              strokeDasharray="2 2"
+              vertical={false}
+            />
+            <XAxis dataKey="name" />
+            {/* 실제 값은 0~2, 라벨은 -1~1 로 보여주기 */}
+            <YAxis
+              domain={[0, 2]}
+              tickFormatter={(v) => (v - 1).toString()}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Legend content={<CustomLegend />} />
+            {/* ✅ NDVI 막대 왼쪽, NDMI 막대 오른쪽 (값은 +1 된 BAR 필드 사용) */}
+            <Bar
+              dataKey="NDVI_BAR"
+              name="NDVI"
+              barSize={14}
+              radius={[0, 0, 0, 0]}
+              fill="#22c55e"
+            />
+            <Bar
+              dataKey="NDMI_BAR"
+              name="NDMI"
+              barSize={14}
+              radius={[0, 0, 0, 0]}
+              fill="#68DEED"
+            />
+          </BarChart>
+        </ResponsiveContainer>
       </div>
     </div>
   );

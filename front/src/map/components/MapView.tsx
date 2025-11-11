@@ -320,7 +320,7 @@ useEffect(() => {
                 color: "#6b7280",
               }}
             >
-              {(selectedLandmark.province || "지역 정보 없음") +
+              {
                 (selectedLandmark.address
                   ? ` · ${selectedLandmark.address}`
                   : "")}

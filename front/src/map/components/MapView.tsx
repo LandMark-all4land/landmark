@@ -15,7 +15,6 @@ import Overlay from "ol/Overlay";
 import { defaults as defaultControls } from "ol/control";
 import { Style, Circle as CircleStyle, Fill, Stroke } from "ol/style";
 import type { Landmark } from "../types/Landmark";
-import type { RasterStat } from "../types/RasterStat";
 
 interface MapViewProps {
   landmarks: Landmark[];
@@ -157,123 +156,45 @@ const MapView: React.FC<MapViewProps> = ({
   // 3) 행정경계 Feature 생성
   // -----------------------------
 
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !boundaries?.length) return;
+useEffect(() => {
+  const map = mapRef.current;
+  if (!map || !boundaries?.length) return;
 
-    const source = boundarySourceRef.current;
-    source.clear();
+  const source = boundarySourceRef.current;
+  source.clear();
 
-    const geojson = new GeoJSON();
+  const geojson = new GeoJSON();
 
-    boundaries.forEach((b) => {
-      if (!b.geoJson) return;
+  boundaries.forEach((b) => {
+    if (!b.geoJson) return;
 
-      try {
-        // ✅ 문자열일 수도 있으니 파싱
-        const geom =
-          typeof b.geoJson === "string" ? JSON.parse(b.geoJson) : b.geoJson;
-
-        // ✅ 단일 Feature든 MultiPolygon이든 배열로 통일
-        const features = geojson.readFeatures(geom, {
-          dataProjection: "EPSG:4326",
-          featureProjection: "EPSG:3857",
-        });
-
-        // ✅ 각각 Feature에 속성 추가
-        features.forEach((f) => {
-          f.setProperties({
-            admCode: b.admCode,
-            admName: b.admName,
-            level: b.level,
-          });
-        });
-
-        // ✅ 배열 단위로 추가
-        source.addFeatures(features);
-      } catch (err) {
-        console.error("❌ 경계 파싱 오류:", err, b);
-      }
-    });
-  }, [boundaries]);
-
-  // -----------------------------
-  // 3-1) GeoTIFF 타일 갱신
-  // -----------------------------
-  useEffect(() => {
-    const layer = rasterLayerRef.current;
-    if (!layer) return;
-
-    const url = rasterStat?.s3Path ?? null;
-
-    if (!url) {
-      layer.setVisible(false);
-      return;
-    }
-
-    const source = new GeoTIFF({
-      sources: [
-        {
-          url,
-        },
-      ],
-      transition: 0,
-      convertToRGB: true,
-    });
-
-    layer.setSource(source);
-    layer.setVisible(true);
-  }, [rasterStat?.s3Path]);
-
-  // -----------------------------
-  // 3-2) GeoTIFF 버퍼(폴리곤) 갱신
-  // -----------------------------
-  useEffect(() => {
-    const source = rasterFootprintSourceRef.current;
-    const layer = rasterFootprintLayerRef.current;
-    const map = mapRef.current;
-    if (!source || !layer || !map) return;
-
-    source.clear();
-
-    if (!rasterStat?.geom) {
-      layer.setVisible(false);
-      return;
-    }
-
-    const geojson = new GeoJSON();
     try {
-      const features = geojson.readFeatures(
-        {
-          type: "Feature",
-          geometry: rasterStat.geom,
-          properties: {},
-        },
-        {
-          dataProjection: "EPSG:4326",
-          featureProjection: "EPSG:3857",
-        }
-      );
+      // ✅ 문자열일 수도 있으니 파싱
+      const geom =
+        typeof b.geoJson === "string" ? JSON.parse(b.geoJson) : b.geoJson;
 
-      if (!features.length) {
-        layer.setVisible(false);
-        return;
-      }
-
-      source.addFeatures(features);
-      layer.setVisible(true);
-
-      const extent = source.getExtent();
-      map.getView().fit(extent, {
-        padding: [80, 80, 80, 80],
-        duration: 600,
-        maxZoom: 16,
+      // ✅ 단일 Feature든 MultiPolygon이든 배열로 통일
+      const features = geojson.readFeatures(geom, {
+        dataProjection: "EPSG:4326",
+        featureProjection: "EPSG:3857",
       });
+
+      // ✅ 각각 Feature에 속성 추가
+      features.forEach((f) => {
+        f.setProperties({
+          admCode: b.admCode,
+          admName: b.admName,
+          level: b.level,
+        });
+      });
+
+      // ✅ 배열 단위로 추가
+      source.addFeatures(features);
     } catch (err) {
-      console.error("❌ GeoTIFF 폴리곤 파싱 오류:", err, rasterStat.geom);
-      layer.setVisible(false);
+      console.error("❌ 경계 파싱 오류:", err, b);
     }
-  }, [rasterStat]);
+  });
+}, [boundaries]);
 
   // -----------------------------
   // 4) 마커 Feature 생성

@@ -217,11 +217,6 @@ const MapPage: React.FC = () => {
     loadRasters();
   }, [selectedLandmark, selectedMonth]);
 
-  const rasterForMap = useMemo(() => {
-    if (!selectedLandmark) return null;
-    return ndvi ?? ndmi;
-  }, [selectedLandmark, ndvi, ndmi]);
-
   // -----------------------------
   //  월 버튼 렌더링
   // -----------------------------
@@ -566,7 +561,6 @@ const MapPage: React.FC = () => {
           landmarks={landmarks}
           selectedLandmark={selectedLandmark}
           onMarkerClick={handleMarkerClick}
-          rasterStat={rasterForMap}
         />
 
         {/* 검색창 + 월 버튼 */}

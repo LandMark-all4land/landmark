@@ -37,6 +37,12 @@ dependencies {
 
 	implementation 'org.hibernate.orm:hibernate-spatial:6.5.2.Final'	// geometry 타입을 JPA에서 사용하기 위해
 	implementation 'org.wololo:jts2geojson:0.16.1' // 단방향 변환 유틸(가볍고 간단)
+
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+	implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
+	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
+	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
 }
 
 tasks.named('test') {

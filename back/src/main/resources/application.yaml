@@ -5,6 +5,21 @@ spring:
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
+  security:
+    oauth2:
+      client:
+        registration:
+          github:
+            client-id: ${GITHUB_CLIENT_ID}
+            client-secret: ${GITHUB_CLIENT_SECRET}
+            scope: user:email, read:user
+        provider:
+          github:
+            redirect-uri: ${GITHUB_REDIRECT_URI}
+            authorization-uri: https://github.com/login/oauth/authorize
+            token-uri: https://github.com/login/oauth/access_token
+            user-info-uri: https://api.github.com/user
+
   jpa:
     hibernate:
       ddl-auto: none
@@ -17,3 +32,10 @@ cloud:
   aws:
     s3:
       bucket: ${S3_BUCKET_NAME}
+
+jwt:
+  secret: ${JWT_SECRET_KEY}
+
+app:
+  oauth2:
+    redirect-uri: ${FRONTEND_REDIRECT_URL}

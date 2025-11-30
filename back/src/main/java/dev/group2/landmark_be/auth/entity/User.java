@@ -24,10 +24,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-enum AuthProvider {
-	GITHUB, GOOGLE, NONE
-}
-
 @Entity
 @Table(name = "users", schema = "app")
 @Getter

@@ -46,7 +46,7 @@ public class NoteService {
 
 	@Transactional
 	public List<NoteResponse> findMyNotesByLandmarkId(Long userId, Long landmarkId) {
-		List<Note> notes = noteRepository.findAllByUserIdAndLandmarkIdOrderByCreatedAtDesc(userId, landmarkId);
+		List<Note> notes = noteRepository.findAllByUser_IdAndLandmarkIdOrderByCreatedAtDesc(userId, landmarkId);
 		return notes.stream()
 			.map(this::convertToResponse)
 			.collect(Collectors.toList());

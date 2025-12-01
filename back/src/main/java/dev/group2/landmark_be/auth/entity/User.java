@@ -60,6 +60,8 @@ public class User implements UserDetails, OAuth2User {
 	@Transient
 	private Map<String, Object> attributes;
 
+	private String avatarUrl;
+
 	@Override
 	public Map<String, Object> getAttributes() {
 		return this.attributes;
@@ -106,10 +108,10 @@ public class User implements UserDetails, OAuth2User {
 		return true;
 	}
 
-	public User updateOAuthInfo(String username, String email, Map<String, Object> attributes) {
+	public User updateOAuthInfo(String username, String email, String avatarUrl) {
 		this.username = username;
 		this.email = email;
-		this.attributes = attributes;
+		this.avatarUrl = avatarUrl;
 		return this;
 	}
 }

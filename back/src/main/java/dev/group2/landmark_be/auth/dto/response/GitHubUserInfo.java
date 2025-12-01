@@ -9,7 +9,7 @@ public record GitHubUserInfo(
 	Long id,
 
 	@JsonProperty("login")
-	String githubId,
+	String login,
 
 	@JsonProperty("avatar_url")
 	String avatarUrl,
@@ -19,7 +19,7 @@ public record GitHubUserInfo(
 		return User.builder()
 			.oauthProvider(AuthProvider.GITHUB)
 			.oauthId(String.valueOf(this.id))
-			.username(this.githubId())
+			.username(this.login())
 			.email(this.email)
 			.role("ROLE_USER")
 			.build();

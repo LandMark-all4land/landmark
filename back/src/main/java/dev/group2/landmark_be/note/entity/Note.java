@@ -45,4 +45,16 @@ public class Note {
 
 	@Column(name = "updated_at")
 	private LocalDateTime updatedAt;
+
+	public void setContent(String content) {
+		this.content = content;
+	}
+
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+
+	public Long getUserId() {
+		return this.user.getId();
+	}
 }

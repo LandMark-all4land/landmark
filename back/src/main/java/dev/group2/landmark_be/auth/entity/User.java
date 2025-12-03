@@ -18,6 +18,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -25,7 +26,16 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "users", schema = "app")
+@Table(
+	name = "users",
+	schema = "app",
+	uniqueConstraints = {
+		@UniqueConstraint(
+			name = "uk_user_provider_oauth_id",
+			columnNames = {"oauth_provider", "oauth_id"}
+		)
+	}
+)
 @Getter
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -42,14 +52,14 @@ public class User implements UserDetails, OAuth2User {
 	private AuthProvider oauthProvider;
 
 	// oauth provider 에서 받은 고유 id
-	@Column(name = "oauth_id", unique = true, nullable = false)
+	@Column(name = "oauth_id", nullable = false)
 	private String oauthId;
 
 	// 깃헙 닉네임
 	@Column(name = "username", nullable = false)
 	private String username;
 
-	@Column(name = "email", unique = true)
+	@Column(name = "email")
 	private String email;
 
 	// jwt에 저장할 수 있는 역할 정의
@@ -60,7 +70,8 @@ public class User implements UserDetails, OAuth2User {
 	@Transient
 	private Map<String, Object> attributes;
 
-	private String avatarUrl;
+	@Column(name = "profile_image_url")
+	private String profileImageUrl;
 
 	@Override
 	public Map<String, Object> getAttributes() {
@@ -69,7 +80,7 @@ public class User implements UserDetails, OAuth2User {
 
 	@Override
 	public String getName() {
-		return this.username;
+		return this.oauthId;
 	}
 
 	// UserDetails 인터페이스 구현 (spring security 필수)
@@ -108,10 +119,15 @@ public class User implements UserDetails, OAuth2User {
 		return true;
 	}
 
-	public User updateOAuthInfo(String username, String email, String avatarUrl) {
+	public User updateOAuthInfo(String username, String email, String profileImageUrl) {
 		this.username = username;
 		this.email = email;
-		this.avatarUrl = avatarUrl;
+		this.profileImageUrl = profileImageUrl;
+		return this;
+	}
+
+	public User withAttributes(Map<String, Object> attributes) {
+		this.attributes = attributes;
 		return this;
 	}
 }

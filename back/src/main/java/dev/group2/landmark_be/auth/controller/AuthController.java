@@ -13,4 +13,9 @@ public class AuthController {
 	public RedirectView redirectToGitHubAuth() {
 		return new RedirectView("/oauth2/authorization/github");
 	}
+
+	@GetMapping("/google")
+	public RedirectView redirectToGoogleAuth() {
+		return new RedirectView("/oauth2/authorization/google");
+	}
 }

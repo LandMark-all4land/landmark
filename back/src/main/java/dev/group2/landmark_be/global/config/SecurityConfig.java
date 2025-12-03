@@ -17,6 +17,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import dev.group2.landmark_be.auth.filter.JwtAuthenticationFilter;
 import dev.group2.landmark_be.auth.handler.OAuth2AuthenticationSuccessHandler;
 import dev.group2.landmark_be.auth.service.CustomOauth2UserService;
+import dev.group2.landmark_be.auth.service.CustomOidcUserService;
 import dev.group2.landmark_be.auth.service.UserDetailServiceImpl;
 import dev.group2.landmark_be.auth.util.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 public class SecurityConfig {
 
 	private final CustomOauth2UserService customOauth2UserService;
+	private final CustomOidcUserService customOidcUserService;
 	private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
 	private final JwtTokenProvider jwtTokenProvider;
 	private final UserDetailServiceImpl userDetailService;
@@ -44,7 +46,7 @@ public class SecurityConfig {
 			.addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, userDetailService), UsernamePasswordAuthenticationFilter.class)
 
 			.authorizeHttpRequests(auth -> auth
-				.requestMatchers("/api/auth/**", "/oauth2/**", "/api/landmark/**", "/api/boundaries/**", "/api/notes/**", "/").permitAll()
+				.requestMatchers("/api/auth/**", "/oauth2/**", "/api/landmarks/**", "/api/boundaries/**", "/api/notes/**", "/").permitAll()
 				.anyRequest().authenticated()
 			)
 
@@ -54,6 +56,7 @@ public class SecurityConfig {
 				)
 				.userInfoEndpoint(userinfo -> userinfo
 					.userService(customOauth2UserService)
+					.oidcUserService(customOidcUserService)
 				)
 				.successHandler(oAuth2AuthenticationSuccessHandler)
 			);

@@ -5,15 +5,14 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import org.aspectj.weaver.ast.Not;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.group2.landmark_be.auth.entity.User;
 import dev.group2.landmark_be.auth.repository.UserRepository;
 import dev.group2.landmark_be.global.exception.ErrorCode;
-import dev.group2.landmark_be.global.exception.NoteNotFound;
-import dev.group2.landmark_be.global.exception.UnauthorizedAccess;
+import dev.group2.landmark_be.global.exception.NoteNotFoundException;
+import dev.group2.landmark_be.global.exception.UnauthorizedAccessException;
 import dev.group2.landmark_be.note.dto.request.NoteRequest;
 import dev.group2.landmark_be.note.dto.response.NoteResponse;
 import dev.group2.landmark_be.note.entity.Note;
@@ -30,7 +29,7 @@ public class NoteService {
 	@Transactional
 	public NoteResponse saveNote(Long userId, Long landmarkId, NoteRequest noteRequest) {
 		User user = userRepository.findById(userId)
-			.orElseThrow(() -> new UnauthorizedAccess(ErrorCode.UNAUTHORIZED_ACCESS));
+			.orElseThrow(() -> new UnauthorizedAccessException(ErrorCode.UNAUTHORIZED_ACCESS));
 
 		Note note = Note.builder()
 			.user(user)
@@ -55,10 +54,10 @@ public class NoteService {
 	@Transactional
 	public void deleteNote(Long noteId, Long currentUserId) {
 		Note note = noteRepository.findById(noteId)
-			.orElseThrow(() -> new NoteNotFound(ErrorCode.NOTE_NOT_FOUND));
+			.orElseThrow(() -> new NoteNotFoundException(ErrorCode.NOTE_NOT_FOUND));
 
 		if(!Objects.equals(note.getUserId(), currentUserId)) {
-			throw new UnauthorizedAccess(ErrorCode.UNAUTHORIZED_ACCESS);
+			throw new UnauthorizedAccessException(ErrorCode.UNAUTHORIZED_ACCESS);
 		}
 		noteRepository.delete(note);
 	}

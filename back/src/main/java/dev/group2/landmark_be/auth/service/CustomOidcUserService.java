@@ -29,6 +29,8 @@ public class CustomOidcUserService implements OAuth2UserService<OidcUserRequest,
 	private final UserRepository userRepository;
 	private final ObjectMapper objectMapper;
 
+	private static final String GOOGLE_OAUTH_EXCEPTION_MESSAGE = "유효하지 않은 Google 사용자";
+
 	@Override
 	@Transactional
 	public OidcUser loadUser(OidcUserRequest userRequest) throws OAuth2AuthenticationException {
@@ -42,7 +44,7 @@ public class CustomOidcUserService implements OAuth2UserService<OidcUserRequest,
 		try {
 			userInfo = objectMapper.convertValue(attributes, GoogleUserInfo.class);
 		} catch (IllegalArgumentException e) {
-			throw new OAuth2AuthenticationException("유효하지 않은 Google 사용자 정보");
+			throw new OAuth2AuthenticationException(GOOGLE_OAUTH_EXCEPTION_MESSAGE);
 		}
 
 		User user = saveOrUpdateGoogleUser(userInfo, attributes);
@@ -69,7 +71,7 @@ public class CustomOidcUserService implements OAuth2UserService<OidcUserRequest,
 		String oauthId = userInfo.sub();
 		AuthProvider provider = AuthProvider.GOOGLE;
 
-		User user = userRepository.findByOauthIdAndOauthProvider(oauthId, provider)
+		User user = userRepository.findByOauthProviderAndOauthId(provider, oauthId)
 			.map(entity -> entity.updateOAuthInfo(
 				userInfo.name(),
 				userInfo.email(),

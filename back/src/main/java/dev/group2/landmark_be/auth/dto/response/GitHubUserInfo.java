@@ -20,9 +20,10 @@ public record GitHubUserInfo(
 	public User toEntity() {
 		return User.builder()
 			.oauthProvider(AuthProvider.GITHUB)
-			.oauthId(String.valueOf(this.id))
-			.username(this.login())
-			.email(this.email)
+			.oauthId(String.valueOf(id))
+			.username(login)
+			.profileImageUrl(avatarUrl)
+			.email(email)
 			.role("ROLE_USER")
 			.build();
 	}

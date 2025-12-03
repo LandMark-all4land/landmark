@@ -9,5 +9,5 @@ import dev.group2.landmark_be.auth.entity.User;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 
-	Optional<User> findByOauthIdAndOauthProvider(String oauthId, AuthProvider oauthProvider);
+	Optional<User> findByOauthProviderAndOauthId(AuthProvider oauthProvider, String oauthId);
 }

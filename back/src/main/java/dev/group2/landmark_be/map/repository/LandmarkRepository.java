@@ -12,7 +12,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.web.servlet.tags.form.SelectTag;
 
 @Repository
-public interface LandmarkRepository extends JpaRepository<Landmark, Integer> {
+public interface LandmarkRepository extends JpaRepository<Landmark, Long> {
 
 	// 특정 admBoundary(시도)에 속한 모든 랜드마크 조회
 	@Query(value = """

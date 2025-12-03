@@ -20,7 +20,7 @@ public class LandmarkRasterService {
 
 	private static final Double RASTER_SIMPLIFY_TOLERANCE = 0.0005;
 
-	public List<LandmarkRasterResponse> getRastersByLandmarkIdAndMonth(Integer landmarkId, Integer year, Integer month) {
+	public List<LandmarkRasterResponse> getRastersByLandmarkIdAndMonth(Long landmarkId, Integer year, Integer month) {
 		List<RasterSimplifiedProjection> projections = rasterRepository.findSimplifiedByLandmarkIdAndMonth(landmarkId, year, month, RASTER_SIMPLIFY_TOLERANCE);
 		return projections.stream()
 			.map(this::convertToResponse)

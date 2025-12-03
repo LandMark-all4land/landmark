@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import dev.group2.landmark_be.map.dto.response.RasterSimplifiedProjection;
+import dev.group2.landmark_be.map.dto.response.RasterStatsProjection;
 import dev.group2.landmark_be.map.entity.LandmarkRaster;
 
 @Repository
@@ -36,9 +37,31 @@ public interface LandmarkRasterRepository extends JpaRepository<LandmarkRaster, 
 		AND r.month = :month
 		""", nativeQuery = true)
 	List<RasterSimplifiedProjection> findSimplifiedByLandmarkIdAndMonth(
-		@Param("landmarkId") Integer landmarkId,
+		@Param("landmarkId") Long landmarkId,
 		@Param("year") Integer year,
 		@Param("month") Integer month,
 		@Param("tolerance") Double tolerance
+	);
+
+	@Query(value = """
+		SELECT
+			r.landmark_id as landmarkId,
+			r.year as year,
+			r.month as month,
+			r.index_type as indexType,
+			r.val_mean as valMean
+		FROM
+			app.landmark_raster r
+		WHERE
+			r.landmark_id = :landmarkId
+			and r.year = :year
+			and r.month = :month
+			and r.index_type in ('NDVI', 'NDMI')
+		ORDER BY r.index_type
+		""", nativeQuery = true)
+	List<RasterStatsProjection> findStatsByLandmarkIdAndYearAndMonth(
+		@Param("landmarkId") Long landmarkId,
+		@Param("year") Integer year,
+		@Param("month") Integer month
 	);
 }

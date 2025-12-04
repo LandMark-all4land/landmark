@@ -68,7 +68,7 @@ public class CustomOauth2UserService implements OAuth2UserService<OAuth2UserRequ
 
 	private User saveOrUpdateGitHubUser(GitHubUserInfo userInfo, Map<String, Object> attributes) {
 		String oauthId = userInfo.id().toString();
-		AuthProvider provider = AuthProvider.GOOGLE;
+		AuthProvider provider = AuthProvider.GITHUB;
 
 		User user = userRepository.findByOauthProviderAndOauthId(provider, oauthId)
 			.map(entity -> entity.updateOAuthInfo(

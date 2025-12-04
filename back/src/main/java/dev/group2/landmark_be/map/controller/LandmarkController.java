@@ -2,9 +2,11 @@ package dev.group2.landmark_be.map.controller;
 import dev.group2.landmark_be.global.dto.ApiResponse;
 import dev.group2.landmark_be.map.dto.response.LandmarkRasterResponse;
 import dev.group2.landmark_be.map.dto.response.LandmarkResponse;
+import dev.group2.landmark_be.map.dto.response.RiskResponse;
 import dev.group2.landmark_be.map.repository.LandmarkRepository;
 import dev.group2.landmark_be.map.service.LandmarkRasterService;
 import dev.group2.landmark_be.map.service.LandmarkService;
+import dev.group2.landmark_be.map.service.RiskService;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -22,9 +24,9 @@ import java.util.Map;
 @Validated
 public class LandmarkController {
 
-	private final LandmarkRepository landmarkRepository;
 	private final LandmarkService landmarkService;
 	private final LandmarkRasterService rasterService;
+	private final RiskService riskService;
 
 	// 전체 랜드마크 조회
 	@GetMapping
@@ -49,10 +51,21 @@ public class LandmarkController {
 	// 랜드마크 id로 랜드마크 래스터 데이터 조회
 	@GetMapping("/{landmarkId}/rasters")
 	public ApiResponse<List<LandmarkRasterResponse>> getRastersByLandmarkId(
-		@PathVariable Integer landmarkId,
+		@PathVariable Long landmarkId,
 		@RequestParam @NotNull @Min(2000) Integer year,
-		@RequestParam @NotNull @Min(1) @Max(12) Integer month) {
+		@RequestParam @NotNull @Min(1) @Max(12) Integer month
+	) {
 		List<LandmarkRasterResponse> rasters = rasterService.getRastersByLandmarkIdAndMonth(landmarkId, year, month);
 		return ApiResponse.success(rasters);
+	}
+
+	@GetMapping("/{landmarkId}/risk")
+	public ApiResponse<RiskResponse> getLandmarkRiskByMonth(
+		@PathVariable Long landmarkId,
+		@RequestParam @NotNull @Min(2000) Integer year,
+		@RequestParam @NotNull @Min(1) @Max(12) Integer month
+	) {
+		RiskResponse risk = riskService.getRiskScoreByMonth(landmarkId, year, month);
+		return ApiResponse.success(risk);
 	}
 }

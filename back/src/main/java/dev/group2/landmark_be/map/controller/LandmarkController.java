@@ -49,7 +49,7 @@ public class LandmarkController {
 	}
 
 	// 랜드마크 id로 랜드마크 래스터 데이터 조회
-	@GetMapping("/{landmarkId}/rasters/")
+	@GetMapping("/{landmarkId}/rasters")
 	public ApiResponse<List<LandmarkRasterResponse>> getRastersByLandmarkId(
 		@PathVariable Long landmarkId,
 		@RequestParam @NotNull @Min(2000) Integer year,

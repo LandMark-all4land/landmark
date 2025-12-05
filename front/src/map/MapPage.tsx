@@ -70,12 +70,12 @@ const MapPage: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState<MonthPreset | null>(null);
   const [rasterLoading, setRasterLoading] = useState(false);
   const [rasterError, setRasterError] = useState<string | null>(null);
-  const [ndvi, setNdvi] = useState<RasterStat | null>(null);
-  const [ndmi, setNdmi] = useState<RasterStat | null>(null);
-
-  const hasNdvi = !!ndvi;
-  const hasNdmi = !!ndmi;
-  const fireRisk = computeFireRisk(ndvi, ndmi);
+  const [rasterData, setRasterData] = useState<RasterStat[]>([]);
+  const [selectedIndexType, setSelectedIndexType] = useState<string | null>(null);
+  
+  // 기존 호환성을 위한 ndvi, ndmi 계산
+  const ndvi = rasterData.find((r) => r.indexType === "NDVI") ?? null;
+  const ndmi = rasterData.find((r) => r.indexType === "NDMI") ?? null;
 
   // -----------------------------
   //  랜드마크 조회
@@ -132,8 +132,8 @@ const MapPage: React.FC = () => {
     if (!value.trim()) {
       setSelectedLandmark(null);
       setSelectedMonth(null);
-      setNdvi(null);
-      setNdmi(null);
+      setRasterData([]);
+      setSelectedIndexType(null);
       setRasterError(null);
     }
   };
@@ -150,8 +150,8 @@ const MapPage: React.FC = () => {
       setSearchText(lm.name || String(lm.id));
     } else {
       setSelectedMonth(null);
-      setNdvi(null);
-      setNdmi(null);
+      setRasterData([]);
+      setSelectedIndexType(null);
       setRasterError(null);
     }
   };
@@ -170,19 +170,20 @@ const MapPage: React.FC = () => {
       selectedMonth?.month === preset.month
     ) {
       setSelectedMonth(null);
-      setNdvi(null);
-      setNdmi(null);
+      setRasterData([]);
+      setSelectedIndexType(null);
       setRasterError(null);
       return;
     }
     setSelectedMonth(preset);
+    setSelectedIndexType(null);
   };
 
   // 래스터 데이터 조회
   useEffect(() => {
     if (!selectedLandmark || !selectedMonth) {
-      setNdvi(null);
-      setNdmi(null);
+      setRasterData([]);
+      setSelectedIndexType(null);
       setRasterError(null);
       return;
     }
@@ -199,16 +200,19 @@ const MapPage: React.FC = () => {
           month
         );
 
-        const ndviRow = rows.find((r) => r.indexType === "NDVI") ?? null;
-        const ndmiRow = rows.find((r) => r.indexType === "NDMI") ?? null;
-
-        setNdvi(ndviRow);
-        setNdmi(ndmiRow);
+        setRasterData(rows);
+        
+        // 기본적으로 첫 번째 래스터를 선택 (있을 경우)
+        if (rows.length > 0) {
+          setSelectedIndexType(rows[0].indexType);
+        } else {
+          setSelectedIndexType(null);
+        }
       } catch (e: any) {
         console.error("래스터 데이터 조회 실패:", e);
         setRasterError(e.message ?? "래스터 데이터를 불러오지 못했습니다.");
-        setNdvi(null);
-        setNdmi(null);
+        setRasterData([]);
+        setSelectedIndexType(null);
       } finally {
         setRasterLoading(false);
       }
@@ -561,6 +565,9 @@ const MapPage: React.FC = () => {
           landmarks={landmarks}
           selectedLandmark={selectedLandmark}
           onMarkerClick={handleMarkerClick}
+          rasterData={rasterData}
+          selectedIndexType={selectedIndexType}
+          onIndexTypeSelect={setSelectedIndexType}
         />
 
         {/* 검색창 + 월 버튼 */}

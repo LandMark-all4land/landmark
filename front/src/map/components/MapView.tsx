@@ -15,6 +15,7 @@ import Overlay from "ol/Overlay";
 import { defaults as defaultControls } from "ol/control";
 import { Style, Circle as CircleStyle, Fill, Stroke } from "ol/style";
 import type { Landmark } from "../types/Landmark";
+import type { RasterStat } from "../types/RasterStat";
 
 interface MapViewProps {
   landmarks: Landmark[];
@@ -23,6 +24,9 @@ interface MapViewProps {
   rasterStat?: RasterStat | null;
   initialCenter?: [number, number];
   initialZoom?: number;
+  rasterData?: RasterStat[];
+  selectedIndexType?: string | null;
+  onIndexTypeSelect?: (indexType: string | null) => void;
 }
 
 const MapView: React.FC<MapViewProps> = ({
@@ -32,6 +36,9 @@ const MapView: React.FC<MapViewProps> = ({
   rasterStat = null,
   initialCenter = [127.7669, 35.9078],
   initialZoom = 7,
+  rasterData = [],
+  selectedIndexType = null,
+  onIndexTypeSelect,
 }) => {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<Map | null>(null);
@@ -68,6 +75,27 @@ const MapView: React.FC<MapViewProps> = ({
           color: "rgba(249, 115, 22, 0.15)",
         }),
       }),
+    })
+  );
+
+  // ====== 래스터 레이어 (WMS) ======
+  const rasterSourceRef = useRef(
+    new ImageWMS({
+      url: "http://localhost:9090/geoserver/nurc/wms",
+      params: {
+        LAYERS: "",
+        VERSION: "1.1.0",
+        FORMAT: "image/png",
+        TRANSPARENT: true,
+      },
+      serverType: "geoserver",
+    })
+  );
+  const rasterLayerRef = useRef(
+    new ImageLayer({
+      source: rasterSourceRef.current,
+      opacity: 0.7,
+      visible: false, // 초기에는 숨김
     })
   );
 
@@ -304,8 +332,53 @@ useEffect(() => {
   }, [onMarkerClick, landmarks, selectedLandmark]);
 
   // -----------------------------
-  // 8) 렌더링
+  // 8) 선택된 래스터 WMS 레이어 표시
   // -----------------------------
+  useEffect(() => {
+    const source = rasterSourceRef.current;
+    const layer = rasterLayerRef.current;
+
+    if (!selectedIndexType || !rasterData.length || !selectedLandmark) {
+      // 레이어 숨기기
+      layer.setVisible(false);
+      return;
+    }
+
+    const selectedRaster = rasterData.find(
+      (r) => r.indexType === selectedIndexType
+    );
+
+    if (!selectedRaster) {
+      layer.setVisible(false);
+      return;
+    }
+
+    // 레이어 이름 생성: nurc:{landmarkId}_{indexType}_{year}_{month}_3km
+    const landmarkId = selectedLandmark.id;
+    const indexType = selectedRaster.indexType;
+    const year = selectedRaster.year;
+    const month = String(selectedRaster.month).padStart(2, "0");
+
+    const layerName = `nurc:${landmarkId}_${indexType}_${year}_${month}_3km`;
+
+    // WMS 파라미터 업데이트
+    source.updateParams({
+      LAYERS: layerName,
+    });
+
+    // 레이어 표시
+    layer.setVisible(true);
+  }, [selectedIndexType, rasterData, selectedLandmark]);
+
+  // -----------------------------
+  // 9) 렌더링
+  // -----------------------------
+  
+  // 사용 가능한 indexType 목록
+  const availableIndexTypes = Array.from(
+    new Set(rasterData.map((r) => r.indexType))
+  );
+
   return (
     <div
       ref={hostRef}
@@ -364,6 +437,68 @@ useEffect(() => {
           </div>
         )}
       </div>
+
+      {/* 오른쪽 하단 indexType 버튼 */}
+      {availableIndexTypes.length > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 16,
+            right: 16,
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+            zIndex: 1000,
+          }}
+        >
+          {availableIndexTypes.map((indexType) => {
+            const isSelected = selectedIndexType === indexType;
+            return (
+              <button
+                key={indexType}
+                type="button"
+                onClick={() => {
+                  if (onIndexTypeSelect) {
+                    // 같은 버튼 다시 클릭 시 토글
+                    if (isSelected) {
+                      onIndexTypeSelect(null);
+                    } else {
+                      onIndexTypeSelect(indexType);
+                    }
+                  }
+                }}
+                style={{
+                  padding: "10px 16px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  borderRadius: 8,
+                  border: isSelected
+                    ? "2px solid #2563eb"
+                    : "1px solid #e5e7eb",
+                  backgroundColor: isSelected ? "#eff6ff" : "#ffffff",
+                  color: isSelected ? "#1d4ed8" : "#4b5563",
+                  cursor: "pointer",
+                  boxShadow: "0 4px 12px rgba(15, 23, 42, 0.15)",
+                  transition: "all 0.2s",
+                  whiteSpace: "nowrap",
+                }}
+                onMouseEnter={(e) => {
+                  if (!isSelected) {
+                    e.currentTarget.style.backgroundColor = "#f9fafb";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isSelected) {
+                    e.currentTarget.style.backgroundColor = "#ffffff";
+                  }
+                }}
+              >
+                {indexType}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

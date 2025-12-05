@@ -1,11 +1,16 @@
 package dev.group2.landmark_be.map.service;
 
+import java.net.URI;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.locationtech.jts.geom.Point;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
+import org.wololo.jts2geojson.GeoJSONWriter;
 
 import dev.group2.landmark_be.global.exception.AdmBoundaryNotFoundException;
 import dev.group2.landmark_be.global.exception.ErrorCode;
@@ -31,6 +36,29 @@ public class LandmarkService {
 		return results.stream()
 			.map(this::convertFromObjectArray)
 			.collect(Collectors.toList());
+	}
+	public Map<String, Object> getLandmarkWfsData() {
+		RestTemplate restTemplate = new RestTemplate();
+
+		// 1. 요청할 URL 만들기 (파라미터를 보기 좋게 분리)
+		URI uri = UriComponentsBuilder
+			.fromHttpUrl("http://localhost:9090/geoserver/Landmark/ows")
+			.queryParam("service", "WFS")
+			.queryParam("version", "1.0.0")
+			.queryParam("request", "GetFeature")
+			.queryParam("typeName", "Landmark:landmark")
+			.queryParam("maxFeatures", "50")
+			.queryParam("outputFormat", "application/json")
+			.build()
+			.toUri();
+
+		// 2. GET 요청 보내기 (결과를 Map으로 받으면 JSON 구조가 유지됨)
+		try {
+			return restTemplate.getForObject(uri, Map.class);
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw new RuntimeException("GeoServer 데이터 가져오기 실패: " + e.getMessage());
+		}
 	}
 
 	private LandmarkResponse convertFromObjectArray(Object[] row) {
@@ -89,4 +117,6 @@ public class LandmarkService {
 			point.getX()	// 경도
 		);
 	}
+
+
 }

@@ -30,8 +30,12 @@ public class LandmarkController {
 
 	// 전체 랜드마크 조회
 	@GetMapping
-	public ApiResponse<List<LandmarkResponse>> getAllLandmarks() {
-		return ApiResponse.success(landmarkService.findAllLandmarks());
+	public ApiResponse<Map<String, Object>> getAllLandmarks() {
+		// 1. 서비스에서 GeoJSON(Map) 데이터를 받아옴
+		Map<String, Object> geoJsonData = landmarkService.getLandmarkWfsData();
+
+		// 2. ApiResponse.success()에 그대로 담아서 리턴
+		return ApiResponse.success(geoJsonData);
 	}
 
 	// 단일 랜드마크 조회
@@ -68,4 +72,6 @@ public class LandmarkController {
 		RiskResponse risk = riskService.getRiskScoreByMonth(landmarkId, year, month);
 		return ApiResponse.success(risk);
 	}
+
+
 }

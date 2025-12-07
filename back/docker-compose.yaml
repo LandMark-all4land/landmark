@@ -24,19 +24,20 @@ services:
     env_file:
       - .env
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
-      SPRING_DATASOURCE_USERNAME: ${DB_USER}
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+#      SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+#      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+#      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      AWS_ACCESS_KEY_ID: "${AWS_ACCESS_KEY_ID}"
+      AWS_SECRET_ACCESS_KEY: "${AWS_SECRET_ACCESS_KEY}"
+      AWS_REGION: "ap-northeast-2"
+      AWS_DEFAULT_REGION: "ap-northeast-2"
       S3_BUCKET_NAME: ${S3_BUCKET_NAME}
+      S3_PROPERTIES_LOCATION: "/settings/s3.properties"
       S3_ALIAS: aws
 #      S3_SERVER_URL: https://s3.ap-northeast-2.amazonaws.com
       INITIAL_MEMORY: 512m
       MAXIMUM_MEMORY: 2048m
-      COMMUNITY_EXTENSIONS: s3-geotiff-plugin
-      AWS_REGION: ap-northeast-2
-      AWS_DEFAULT_REGION: ap-northeast-2
+      COMMUNITY_EXTENSIONS: "s3-geotiff-plugin"
       JAVA_OPTS: >-
           -Ds3.properties.location=/settings/s3.properties
           -DAWS_REGION=ap-northeast-2

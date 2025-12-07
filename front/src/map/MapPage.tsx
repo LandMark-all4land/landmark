@@ -4,17 +4,18 @@ import MapView from "./components/MapView";
 
 // === 타입 ===
 import type { Landmark } from "./types/Landmark";
-import type { AdmBoundary } from "./types/Boundary";
 import type { RasterStat } from "./types/RasterStat";
 
 // === API ===
 import { fetchLandmarks } from "./api/landmarkApi";
 import { fetchLandmarkRasters } from "./api/rasterApi";
-import { fetchAdmBoundaries } from "./api/boundaryApi";
+import { authUtils } from "../auth/authUtils";
+import { useNavigate } from "react-router-dom";
 
 // === 상수 / 컴포넌트 ===
 import { MONTH_PRESETS, type MonthPreset } from "./constants/monthPresets";
 import RasterDashboard from "./components/RasterDashboard";
+import NotesPanel from "./components/NotesPanel";
 
 // 도넛 차트용 recharts
 import { PieChart, Pie, Cell } from "recharts";
@@ -49,8 +50,9 @@ function computeFireRisk(
 }
 
 const MapPage: React.FC = () => {
-  // ===== 행정경계 / 랜드마크 / 선택 상태 =====
-  const [boundaries, setBoundaries] = useState<AdmBoundary[]>([]);
+  const navigate = useNavigate();
+
+  // ===== 랜드마크 / 선택 상태 =====
   const [landmarks, setLandmarks] = useState<Landmark[]>([]);
   const [selectedLandmark, setSelectedLandmark] = useState<Landmark | null>(
     null
@@ -76,7 +78,7 @@ const MapPage: React.FC = () => {
   const fireRisk = computeFireRisk(ndvi, ndmi);
 
   // -----------------------------
-  //  행정경계 + 랜드마크 동시 조회
+  //  랜드마크 조회
   // -----------------------------
   useEffect(() => {
     const loadAll = async () => {
@@ -84,16 +86,11 @@ const MapPage: React.FC = () => {
         setLoading(true);
         setError(null);
 
-        const [boundaryData, landmarkData] = await Promise.all([
-          fetchAdmBoundaries(),
-          fetchLandmarks(),
-        ]);
-
-        setBoundaries(boundaryData);
+        const landmarkData = await fetchLandmarks();
         setLandmarks(landmarkData);
       } catch (e) {
         console.error("데이터 조회 실패:", e);
-        setError("행정경계 또는 랜드마크 데이터를 불러오지 못했습니다.");
+        setError("랜드마크 데이터를 불러오지 못했습니다.");
       } finally {
         setLoading(false);
       }
@@ -157,6 +154,11 @@ const MapPage: React.FC = () => {
       setNdmi(null);
       setRasterError(null);
     }
+  };
+
+  const handleLogout = () => {
+    authUtils.removeToken();
+    window.location.href = '/';
   };
 
   // -----------------------------
@@ -465,6 +467,41 @@ const MapPage: React.FC = () => {
           overflowY: "auto",
         }}
       >
+        {/* 헤더: 로그아웃 버튼 */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            alignItems: "center",
+            paddingBottom: "8px",
+          }}
+        >
+          <button
+            onClick={handleLogout}
+            style={{
+              padding: "8px 16px",
+              fontSize: 13,
+              borderRadius: 8,
+              border: "1px solid #dc2626",
+              backgroundColor: "#ffffff",
+              color: "#dc2626",
+              cursor: "pointer",
+              fontWeight: 500,
+              transition: "all 0.2s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "#dc2626";
+              e.currentTarget.style.color = "#ffffff";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "#ffffff";
+              e.currentTarget.style.color = "#dc2626";
+            }}
+          >
+            로그아웃
+          </button>
+        </div>
+
         {/* 1) 산불 위험도 카드 (도넛) */}
         <section
           style={{
@@ -501,12 +538,26 @@ const MapPage: React.FC = () => {
             error={rasterError}
           />
         </section>
+
+        {/* 3) 메모 카드 */}
+        <section
+          style={{
+            backgroundColor: "#ffffff",
+            borderRadius: "16px",
+            padding: "20px",
+            boxShadow: "0 10px 25px rgba(15, 23, 42, 0.06)",
+            minHeight: "250px",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <NotesPanel landmark={selectedLandmark} />
+        </section>
       </aside>
 
       {/* ===== 지도 영역 ===== */}
       <main style={{ position: "relative" }}>
         <MapView
-          boundaries={boundaries}
           landmarks={landmarks}
           selectedLandmark={selectedLandmark}
           onMarkerClick={handleMarkerClick}

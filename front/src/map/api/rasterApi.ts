@@ -1,5 +1,5 @@
 // src/map/api/rasterApi.ts
-import axios from "axios";
+import apiClient from "../../api/apiClient";
 import type { RasterStat } from "../types/RasterStat";
 
 export interface RasterResponse {
@@ -8,16 +8,12 @@ export interface RasterResponse {
   error: string | null;
 }
 
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8080",
-});
-
 export async function fetchLandmarkRasters(
   landmarkId: number,
   year: number,
   month: number
 ): Promise<RasterStat[]> {
-  const res = await api.get<RasterResponse>(
+  const res = await apiClient.get<RasterResponse>(
     `/api/landmarks/${landmarkId}/rasters`,
     {
       params: { year, month },

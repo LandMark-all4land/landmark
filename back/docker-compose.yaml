@@ -50,7 +50,7 @@ services:
 
     volumes:
       - geoserver_data:/opt/geoserver/data_dir
-      - ./settings/s3.properties:/settings/s3.properties:ro
+      - ./settings/s3.properties:/settings/s3.properties
     restart: always
 
 # geoserver 설정 정보 저장 공간

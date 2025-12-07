@@ -3,24 +3,22 @@ import React, { useEffect, useRef } from "react";
 import Map from "ol/Map";
 import View from "ol/View";
 import TileLayer from "ol/layer/Tile";
-import OSM from "ol/source/OSM";
+import XYZ from "ol/source/XYZ";
+import TileWMS from "ol/source/TileWMS";
 import { fromLonLat } from "ol/proj";
 import VectorSource from "ol/source/Vector";
 import VectorLayer from "ol/layer/Vector";
 import Feature from "ol/Feature";
 import Point from "ol/geom/Point";
-import GeoJSON from "ol/format/GeoJSON";
 import Overlay from "ol/Overlay";
 import { defaults as defaultControls } from "ol/control";
 import { Style, Circle as CircleStyle, Fill, Stroke } from "ol/style";
-import type { AdmBoundary } from "../types/Boundary";
 import type { Landmark } from "../types/Landmark";
 
 interface MapViewProps {
   landmarks: Landmark[];
   selectedLandmark?: Landmark | null;
   onMarkerClick?: (landmark: Landmark | null) => void;
-  boundaries?: AdmBoundary[];
   initialCenter?: [number, number];
   initialZoom?: number;
 }
@@ -29,7 +27,6 @@ const MapView: React.FC<MapViewProps> = ({
   landmarks,
   selectedLandmark,
   onMarkerClick,
-  boundaries = [],
   initialCenter = [127.7669, 35.9078],
   initialZoom = 7,
 }) => {
@@ -44,25 +41,6 @@ const MapView: React.FC<MapViewProps> = ({
     })
   );
 
-  // ====== 행정경계 레이어 ======
-  const boundarySourceRef = useRef(new VectorSource());
-  const boundaryLayerRef = useRef(
-    new VectorLayer({
-      source: boundarySourceRef.current,
-      style: new Style({
-        stroke: new Stroke({
-          color: "rgba(37, 99, 235, 0.9)",
-          width: 2,
-          lineJoin: "round",
-          lineCap: "round",
-        }),
-        fill: new Fill({
-          color: "rgba(37, 99, 235, 0.05)",
-        }),
-      }),
-    })
-  );
-
   // ====== 팝업 ======
   const popupRef = useRef<HTMLDivElement | null>(null);
   const overlayRef = useRef<Overlay | null>(null);
@@ -73,11 +51,33 @@ const MapView: React.FC<MapViewProps> = ({
   useEffect(() => {
     if (!hostRef.current || mapRef.current) return;
 
-    const base = new TileLayer({ source: new OSM() });
+    // VWorld 일반지도 레이어
+    const base = new TileLayer({
+      source: new XYZ({
+        url: 'https://api.vworld.kr/req/wmts/1.0.0/8E952DFB-FFDE-33E3-BA8A-3D78FF78B6CC/Base/{z}/{y}/{x}.png'
+      })
+    });
+
+    // VWorld WMS - 광역시도 경계
+    const boundaryLayer = new TileLayer({
+      source: new TileWMS({
+        url: 'https://api.vworld.kr/req/wms',
+        params: {
+          'LAYERS': 'lt_c_adsido',
+          'STYLES': 'lt_c_adsido',
+          'FORMAT': 'image/png',
+          'TRANSPARENT': true,
+          'VERSION': '1.3.0',
+          'CRS': 'EPSG:3857',
+          'KEY': '8E952DFB-FFDE-33E3-BA8A-3D78FF78B6CC'
+        },
+        serverType: 'geoserver'
+      })
+    });
 
     const map = new Map({
       target: hostRef.current,
-      layers: [base, boundaryLayerRef.current, markerLayerRef.current],
+      layers: [base, boundaryLayer, markerLayerRef.current],
       view: new View({
         center: fromLonLat(initialCenter),
         zoom: initialZoom,
@@ -91,7 +91,6 @@ const MapView: React.FC<MapViewProps> = ({
       map.setTarget(undefined);
       mapRef.current = null;
       markerSourceRef.current.clear();
-      boundarySourceRef.current.clear();
     };
   }, []);
 
@@ -117,51 +116,7 @@ const MapView: React.FC<MapViewProps> = ({
   }, []);
 
   // -----------------------------
-  // 3) 행정경계 Feature 생성
-  // -----------------------------
-
-useEffect(() => {
-  const map = mapRef.current;
-  if (!map || !boundaries?.length) return;
-
-  const source = boundarySourceRef.current;
-  source.clear();
-
-  const geojson = new GeoJSON();
-
-  boundaries.forEach((b) => {
-    if (!b.geoJson) return;
-
-    try {
-      // ✅ 문자열일 수도 있으니 파싱
-      const geom =
-        typeof b.geoJson === "string" ? JSON.parse(b.geoJson) : b.geoJson;
-
-      // ✅ 단일 Feature든 MultiPolygon이든 배열로 통일
-      const features = geojson.readFeatures(geom, {
-        dataProjection: "EPSG:4326",
-        featureProjection: "EPSG:3857",
-      });
-
-      // ✅ 각각 Feature에 속성 추가
-      features.forEach((f) => {
-        f.setProperties({
-          admCode: b.admCode,
-          admName: b.admName,
-          level: b.level,
-        });
-      });
-
-      // ✅ 배열 단위로 추가
-      source.addFeatures(features);
-    } catch (err) {
-      console.error("❌ 경계 파싱 오류:", err, b);
-    }
-  });
-}, [boundaries]);
-
-  // -----------------------------
-  // 4) 마커 Feature 생성
+  // 3) 마커 Feature 생성
   // -----------------------------
   useEffect(() => {
     const map = mapRef.current;

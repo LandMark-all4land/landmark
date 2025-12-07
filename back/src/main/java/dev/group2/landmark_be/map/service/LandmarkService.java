@@ -6,7 +6,6 @@ import java.util.stream.Collectors;
 import org.locationtech.jts.geom.Point;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.wololo.jts2geojson.GeoJSONWriter;
 
 import dev.group2.landmark_be.global.exception.AdmBoundaryNotFoundException;
 import dev.group2.landmark_be.global.exception.ErrorCode;
@@ -24,14 +23,36 @@ public class LandmarkService {
 
 	private final LandmarkRepository landmarkRepository;
 	private final AdmBoundaryRepository admBoundaryRepository;
-	private final GeoJSONWriter writer = new GeoJSONWriter();
 
 	@Transactional(readOnly = true)
 	public List<LandmarkResponse> findAllLandmarks() {
-		List<Landmark> landmarks = landmarkRepository.findAll();
-		return landmarks.stream()
-			.map(this::convertToResponse)
+		// 최적화: 필요한 필드만 조회 (adm_boundary의 큰 geom 제외)
+		List<Object[]> results = landmarkRepository.findAllLandmarksOptimized();
+		return results.stream()
+			.map(this::convertFromObjectArray)
 			.collect(Collectors.toList());
+	}
+
+	private LandmarkResponse convertFromObjectArray(Object[] row) {
+		// row: [id, name, address, latitude, longitude, admCode, admName]
+		Long id = ((Number) row[0]).longValue();
+		String name = (String) row[1];
+		String address = (String) row[2];
+		Double latitude = ((Number) row[3]).doubleValue();
+		Double longitude = ((Number) row[4]).doubleValue();
+		String admCode = (String) row[5];
+		String admName = (String) row[6];
+
+		return new LandmarkResponse(
+			id,
+			name,
+			address,
+			admCode,
+			admName,
+			null,  // geomJson 제거
+			latitude,
+			longitude
+		);
 	}
 
 	public LandmarkResponse getLandmarkById(Long id) {
@@ -54,7 +75,7 @@ public class LandmarkService {
 	}
 
 	public LandmarkResponse convertToResponse(Landmark entity) {
-		String geomJson = writer.write(entity.getGeom()).toString();
+		// GeoJSON 변환 제거 - 프론트엔드는 위도/경도만 사용
 		AdmBoundary admBoundary = entity.getAdmBoundary();
 		Point point = entity.getGeom();
 		return new LandmarkResponse(
@@ -63,7 +84,7 @@ public class LandmarkService {
 			entity.getAddress(),
 			admBoundary.getAdmCode(),
 			admBoundary.getAdmName(),
-			geomJson,
+			null,  // geomJson 제거
 			point.getY(),	// 위도
 			point.getX()	// 경도
 		);

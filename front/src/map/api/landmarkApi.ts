@@ -1,14 +1,10 @@
-import axios from "axios";
+import apiClient from "../../api/apiClient";
 import type { Landmark } from "../types/Landmark";
-
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8080",
-});
 
 // 전체 랜드마크 조회
 export const fetchLandmarks = async (): Promise<Landmark[]> => {
   try {
-    const res = await api.get("/api/landmarks");
+    const res = await apiClient.get("/api/landmarks");
 
     // 응답 구조: { success: true, data: [...] }
     const arr = res.data?.data;

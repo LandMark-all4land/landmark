@@ -10,7 +10,6 @@ import type { RasterStat } from "./types/RasterStat";
 import { fetchLandmarks } from "./api/landmarkApi";
 import { fetchLandmarkRasters } from "./api/rasterApi";
 import { authUtils } from "../auth/authUtils";
-import { useNavigate } from "react-router-dom";
 
 // === 상수 / 컴포넌트 ===
 import { MONTH_PRESETS, type MonthPreset } from "./constants/monthPresets";
@@ -50,7 +49,6 @@ function computeFireRisk(
 }
 
 const MapPage: React.FC = () => {
-  const navigate = useNavigate();
 
   // ===== 랜드마크 / 선택 상태 =====
   const [landmarks, setLandmarks] = useState<Landmark[]>([]);
@@ -70,13 +68,15 @@ const MapPage: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState<MonthPreset | null>(null);
   const [rasterLoading, setRasterLoading] = useState(false);
   const [rasterError, setRasterError] = useState<string | null>(null);
-  const [ndvi, setNdvi] = useState<RasterStat | null>(null);
-  const [ndmi, setNdmi] = useState<RasterStat | null>(null);
-
+  const [rasterData, setRasterData] = useState<RasterStat[]>([]);
+  const [selectedIndexType, setSelectedIndexType] = useState<string | null>(null);
+  
+  // 기존 호환성을 위한 ndvi, ndmi 계산
+  const ndvi = rasterData.find((r) => r.indexType === "NDVI") ?? null;
+  const ndmi = rasterData.find((r) => r.indexType === "NDMI") ?? null;
   const hasNdvi = !!ndvi;
   const hasNdmi = !!ndmi;
   const fireRisk = computeFireRisk(ndvi, ndmi);
-
   // -----------------------------
   //  랜드마크 조회
   // -----------------------------
@@ -132,8 +132,8 @@ const MapPage: React.FC = () => {
     if (!value.trim()) {
       setSelectedLandmark(null);
       setSelectedMonth(null);
-      setNdvi(null);
-      setNdmi(null);
+      setRasterData([]);
+      setSelectedIndexType(null);
       setRasterError(null);
     }
   };
@@ -150,8 +150,8 @@ const MapPage: React.FC = () => {
       setSearchText(lm.name || String(lm.id));
     } else {
       setSelectedMonth(null);
-      setNdvi(null);
-      setNdmi(null);
+      setRasterData([]);
+      setSelectedIndexType(null);
       setRasterError(null);
     }
   };
@@ -170,8 +170,8 @@ const MapPage: React.FC = () => {
       selectedMonth?.month === preset.month
     ) {
       setSelectedMonth(null);
-      setNdvi(null);
-      setNdmi(null);
+      setRasterData([]);
+      setSelectedIndexType(null);
       setRasterError(null);
       return;
     }
@@ -181,8 +181,8 @@ const MapPage: React.FC = () => {
   // 래스터 데이터 조회
   useEffect(() => {
     if (!selectedLandmark || !selectedMonth) {
-      setNdvi(null);
-      setNdmi(null);
+      setRasterData([]);
+      setSelectedIndexType(null);
       setRasterError(null);
       return;
     }
@@ -199,16 +199,22 @@ const MapPage: React.FC = () => {
           month
         );
 
-        const ndviRow = rows.find((r) => r.indexType === "NDVI") ?? null;
-        const ndmiRow = rows.find((r) => r.indexType === "NDMI") ?? null;
+        setRasterData(rows);
 
-        setNdvi(ndviRow);
-        setNdmi(ndmiRow);
+        // 이전에 선택한 인덱스 타입이 있으면 유지, 없으면 첫 번째 선택
+        if (rows.length > 0) {
+          const keep =
+            rows.find((r) => r.indexType === selectedIndexType)?.indexType ??
+            rows[0].indexType;
+          setSelectedIndexType(keep);
+        } else {
+          setSelectedIndexType(null);
+        }
       } catch (e: any) {
         console.error("래스터 데이터 조회 실패:", e);
         setRasterError(e.message ?? "래스터 데이터를 불러오지 못했습니다.");
-        setNdvi(null);
-        setNdmi(null);
+        setRasterData([]);
+        setSelectedIndexType(null);
       } finally {
         setRasterLoading(false);
       }
@@ -452,7 +458,7 @@ const MapPage: React.FC = () => {
         gridTemplateColumns: "400px 1fr", // 왼쪽 살짝 넓힘
         height: "100vh",
         backgroundColor: "#f3f4f6",
-        overflow: "hidden",
+        overflow: "hidden", 
       }}
     >
       {/* ===== 왼쪽 대시보드 ===== */}
@@ -561,6 +567,10 @@ const MapPage: React.FC = () => {
           landmarks={landmarks}
           selectedLandmark={selectedLandmark}
           onMarkerClick={handleMarkerClick}
+          rasterData={rasterData}
+          selectedIndexType={selectedIndexType}
+          onIndexTypeSelect={setSelectedIndexType}
+          rasterLoading={rasterLoading}
         />
 
         {/* 검색창 + 월 버튼 */}

@@ -1,5 +1,6 @@
 // src/map/components/MapView.tsx
 import React, { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import Map from "ol/Map";
 import View from "ol/View";
 import TileLayer from "ol/layer/Tile";
@@ -14,6 +15,7 @@ import Overlay from "ol/Overlay";
 import { defaults as defaultControls } from "ol/control";
 import { Style, Circle as CircleStyle, Fill, Stroke } from "ol/style";
 import type { Landmark } from "../types/Landmark";
+import type { RasterStat } from "../types/RasterStat";
 
 interface MapViewProps {
   landmarks: Landmark[];
@@ -21,6 +23,10 @@ interface MapViewProps {
   onMarkerClick?: (landmark: Landmark | null) => void;
   initialCenter?: [number, number];
   initialZoom?: number;
+  rasterData?: RasterStat[];
+  selectedIndexType?: string | null;
+  onIndexTypeSelect?: (indexType: string | null) => void;
+  rasterLoading?: boolean;
 }
 
 const MapView: React.FC<MapViewProps> = ({
@@ -29,6 +35,10 @@ const MapView: React.FC<MapViewProps> = ({
   onMarkerClick,
   initialCenter = [127.7669, 35.9078],
   initialZoom = 7,
+  rasterData = [],
+  selectedIndexType = null,
+  onIndexTypeSelect,
+  rasterLoading = false,
 }) => {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<Map | null>(null);
@@ -38,6 +48,24 @@ const MapView: React.FC<MapViewProps> = ({
   const markerLayerRef = useRef(
     new VectorLayer({
       source: markerSourceRef.current,
+    })
+  );
+
+  // ====== 래스터 레이어 (GeoServer WMS 타일) ======
+  const rasterLayerRef = useRef(
+    new TileLayer({
+      source: new TileWMS({
+        url: "http://localhost:9090/geoserver/raster/wms",
+        params: {
+          LAYERS: "",
+          VERSION: "1.1.0",
+          FORMAT: "image/png",
+          TRANSPARENT: true,
+        },
+        serverType: "geoserver",
+      }),
+      visible: false,
+      opacity: 0.7,
     })
   );
 
@@ -77,7 +105,12 @@ const MapView: React.FC<MapViewProps> = ({
 
     const map = new Map({
       target: hostRef.current,
-      layers: [base, boundaryLayer, markerLayerRef.current],
+      layers: [
+        base,
+        rasterLayerRef.current,
+        boundaryLayer,
+        markerLayerRef.current,
+      ],
       view: new View({
         center: fromLonLat(initialCenter),
         zoom: initialZoom,
@@ -98,7 +131,12 @@ const MapView: React.FC<MapViewProps> = ({
   // 2) 팝업 Overlay
   // -----------------------------
   useEffect(() => {
-    if (!mapRef.current || !popupRef.current) return;
+    if (!mapRef.current) return;
+
+    // 팝업 엘리먼트가 아직 없다면 생성
+    if (!popupRef.current) {
+      popupRef.current = document.createElement("div");
+    }
 
     const overlay = new Overlay({
       element: popupRef.current,
@@ -112,6 +150,7 @@ const MapView: React.FC<MapViewProps> = ({
 
     return () => {
       mapRef.current?.removeOverlay(overlay);
+      overlay.setElement(undefined);
     };
   }, []);
 
@@ -140,7 +179,7 @@ const MapView: React.FC<MapViewProps> = ({
   }, [landmarks]);
 
   // -----------------------------
-  // 5) 선택된 마커 스타일 강조
+  // 4) 선택된 마커 스타일 강조
   // -----------------------------
   useEffect(() => {
     const layer = markerLayerRef.current;
@@ -166,7 +205,7 @@ const MapView: React.FC<MapViewProps> = ({
   }, [selectedLandmark]);
 
   // -----------------------------
-  // 6) 선택된 랜드마크 → 줌 + 팝업 이동
+  // 5) 선택된 랜드마크 → 줌 + 팝업 이동
   // -----------------------------
   useEffect(() => {
     const map = mapRef.current;
@@ -185,7 +224,7 @@ const MapView: React.FC<MapViewProps> = ({
   }, [selectedLandmark]);
 
   // -----------------------------
-  // 7) 마커 클릭 이벤트
+  // 6) 마커 클릭 이벤트
   // -----------------------------
   useEffect(() => {
     const map = mapRef.current;
@@ -223,8 +262,56 @@ const MapView: React.FC<MapViewProps> = ({
   }, [onMarkerClick, landmarks, selectedLandmark]);
 
   // -----------------------------
+  // 7) 선택된 래스터 WMS 레이어 표시
+  // -----------------------------
+  useEffect(() => {
+    const source = rasterLayerRef.current.getSource() as TileWMS | null;
+    const layer = rasterLayerRef.current;
+
+    if (!source) return;
+
+    // 선택된 인덱스 타입, 데이터, 랜드마크가 없으면 레이어 숨김
+    if (!selectedIndexType || !rasterData.length || !selectedLandmark) {
+      layer.setVisible(false);
+      return;
+    }
+
+    // 현재 선택된 인덱스 타입에 맞는 데이터 찾기
+    const selectedRaster = rasterData.find(
+      (r) => r.indexType === selectedIndexType
+    );
+
+    if (!selectedRaster) {
+      layer.setVisible(false);
+      return;
+    }
+
+    // ▼▼▼▼▼ 수정된 부분 ▼▼▼▼▼
+    // 요청하신 패턴: raster:{indexType}_{year}_{landmarkName}_{month}
+    // 예시: raster:NDMI_2024_DDP동대문디자인플라자_02
+    
+    const indexType = selectedRaster.indexType;
+    const year = selectedRaster.year;
+    const month = String(selectedRaster.month).padStart(2, "0");
+
+    const landmarkName = (selectedLandmark.name || "").replace(/\s+/g, "");
+
+    const layerName = `raster:${indexType}_${year}_${landmarkName}_${month}`;
+
+    source.updateParams({
+      LAYERS: layerName,
+    });
+
+    layer.setVisible(true);
+  }, [selectedIndexType, rasterData, selectedLandmark]);
   // 8) 렌더링
   // -----------------------------
+  
+  // 사용 가능한 indexType 목록
+  const availableIndexTypes = Array.from(
+    new Set(rasterData.map((r) => r.indexType))
+  );
+
   return (
     <div
       ref={hostRef}
@@ -234,55 +321,139 @@ const MapView: React.FC<MapViewProps> = ({
         position: "relative",
       }}
     >
-      {/* 팝업 DOM */}
-      <div
-        ref={popupRef}
-        style={{
-          pointerEvents: "none",
-          minWidth: 160,
-          maxWidth: 240,
-          transform: "translateY(-6px)",
-          zIndex: 1000,
-        }}
-      >
-        {selectedLandmark && (
+      {/* 래스터 로딩 상태 표시 */}
+      {rasterLoading && (
+        <div
+          style={{
+            position: "absolute",
+            top: 16,
+            right: 16,
+            zIndex: 1100,
+            padding: "8px 12px",
+            borderRadius: 8,
+            backgroundColor: "rgba(255,255,255,0.9)",
+            boxShadow: "0 6px 18px rgba(15,23,42,0.18)",
+            border: "1px solid rgba(229,231,235,0.9)",
+            color: "#111827",
+            fontSize: 12,
+            fontWeight: 600,
+          }}
+        >
+          래스터 불러오는 중...
+        </div>
+      )}
+
+      {/* 팝업 포털 렌더 */}
+      {popupRef.current &&
+        createPortal(
           <div
             style={{
-              backgroundColor: "#ffffff",
-              borderRadius: 12,
-              padding: "8px 10px",
-              boxShadow: "0 10px 25px rgba(15,23,42,0.35)",
-              border: "1px solid rgba(209,213,219,0.9)",
-              color: "#111827",
-              fontSize: 12,
+              pointerEvents: "none",
+              minWidth: 160,
+              maxWidth: 240,
+              transform: "translateY(-6px)",
+              zIndex: 1000,
             }}
           >
-            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>
-              {selectedLandmark.name || "이름 없음"}
-            </div>
-            <div
-              style={{
-                fontSize: 11,
-                color: "#4b5563",
-                marginBottom: 2,
-              }}
-            >
-              #{selectedLandmark.id}
-            </div>
-            <div
-              style={{
-                fontSize: 11,
-                color: "#6b7280",
-              }}
-            >
-              {
-                (selectedLandmark.address
-                  ? ` · ${selectedLandmark.address}`
-                  : "")}
-            </div>
-          </div>
+            {selectedLandmark && (
+              <div
+                style={{
+                  backgroundColor: "#ffffff",
+                  borderRadius: 12,
+                  padding: "8px 10px",
+                  boxShadow: "0 10px 25px rgba(15,23,42,0.35)",
+                  border: "1px solid rgba(209,213,219,0.9)",
+                  color: "#111827",
+                  fontSize: 12,
+                }}
+              >
+                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>
+                  {selectedLandmark.name || "이름 없음"}
+                </div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "#4b5563",
+                    marginBottom: 2,
+                  }}
+                >
+                  #{selectedLandmark.id}
+                </div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "#6b7280",
+                  }}
+                >
+                  {selectedLandmark.address ? ` · ${selectedLandmark.address}` : ""}
+                </div>
+              </div>
+            )}
+          </div>,
+          popupRef.current
         )}
-      </div>
+
+      {/* 오른쪽 하단 indexType 버튼 */}
+      {availableIndexTypes.length > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 16,
+            right: 16,
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+            zIndex: 1000,
+          }}
+        >
+          {availableIndexTypes.map((indexType) => {
+            const isSelected = selectedIndexType === indexType;
+            return (
+              <button
+                key={indexType}
+                type="button"
+                onClick={() => {
+                  if (onIndexTypeSelect) {
+                    // 같은 버튼 다시 클릭 시 토글
+                    if (isSelected) {
+                      onIndexTypeSelect(null);
+                    } else {
+                      onIndexTypeSelect(indexType);
+                    }
+                  }
+                }}
+                style={{
+                  padding: "10px 16px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  borderRadius: 8,
+                  border: isSelected
+                    ? "2px solid #2563eb"
+                    : "1px solid #e5e7eb",
+                  backgroundColor: isSelected ? "#eff6ff" : "#ffffff",
+                  color: isSelected ? "#1d4ed8" : "#4b5563",
+                  cursor: "pointer",
+                  boxShadow: "0 4px 12px rgba(15, 23, 42, 0.15)",
+                  transition: "all 0.2s",
+                  whiteSpace: "nowrap",
+                }}
+                onMouseEnter={(e) => {
+                  if (!isSelected) {
+                    e.currentTarget.style.backgroundColor = "#f9fafb";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isSelected) {
+                    e.currentTarget.style.backgroundColor = "#ffffff";
+                  }
+                }}
+              >
+                {indexType}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

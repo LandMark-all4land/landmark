@@ -5,7 +5,6 @@ import View from "ol/View";
 import TileLayer from "ol/layer/Tile";
 import XYZ from "ol/source/XYZ";
 import TileWMS from "ol/source/TileWMS";
-import GeoTIFF from "ol/source/GeoTIFF";
 import { fromLonLat } from "ol/proj";
 import VectorSource from "ol/source/Vector";
 import VectorLayer from "ol/layer/Vector";
@@ -21,7 +20,6 @@ interface MapViewProps {
   landmarks: Landmark[];
   selectedLandmark?: Landmark | null;
   onMarkerClick?: (landmark: Landmark | null) => void;
-  rasterStat?: RasterStat | null;
   initialCenter?: [number, number];
   initialZoom?: number;
   rasterData?: RasterStat[];
@@ -33,7 +31,6 @@ const MapView: React.FC<MapViewProps> = ({
   landmarks,
   selectedLandmark,
   onMarkerClick,
-  rasterStat = null,
   initialCenter = [127.7669, 35.9078],
   initialZoom = 7,
   rasterData = [],
@@ -51,51 +48,21 @@ const MapView: React.FC<MapViewProps> = ({
     })
   );
 
-  // ====== GeoTIFF 레이어 ======
+  // ====== 래스터 레이어 (GeoServer WMS 타일) ======
   const rasterLayerRef = useRef(
-    new TileLayer<GeoTIFF>({
-      visible: false,
-      opacity: 0.65,
-    })
-  );
-
-  // ====== GeoTIFF 범위(버퍼) 표시 레이어 ======
-  const rasterFootprintSourceRef = useRef(new VectorSource());
-  const rasterFootprintLayerRef = useRef(
-    new VectorLayer({
-      source: rasterFootprintSourceRef.current,
-      visible: false,
-      style: new Style({
-        stroke: new Stroke({
-          color: "rgba(249, 115, 22, 0.9)",
-          width: 2,
-          lineDash: [8, 6],
-        }),
-        fill: new Fill({
-          color: "rgba(249, 115, 22, 0.15)",
-        }),
+    new TileLayer({
+      source: new TileWMS({
+        url: "http://localhost:9090/geoserver/raster/wms",
+        params: {
+          LAYERS: "",
+          VERSION: "1.1.0",
+          FORMAT: "image/png",
+          TRANSPARENT: true,
+        },
+        serverType: "geoserver",
       }),
-    })
-  );
-
-  // ====== 래스터 레이어 (WMS) ======
-  const rasterSourceRef = useRef(
-    new ImageWMS({
-      url: "http://localhost:9090/geoserver/raster/wms",
-      params: {
-        LAYERS: "",
-        VERSION: "1.1.0",
-        FORMAT: "image/png",
-        TRANSPARENT: true,
-      },
-      serverType: "geoserver",
-    })
-  );
-  const rasterLayerRef = useRef(
-    new ImageLayer({
-      source: rasterSourceRef.current,
+      visible: false,
       opacity: 0.7,
-      visible: false, // 초기에는 숨김
     })
   );
 
@@ -139,7 +106,6 @@ const MapView: React.FC<MapViewProps> = ({
         base,
         rasterLayerRef.current,
         boundaryLayer,
-        rasterFootprintLayerRef.current,
         markerLayerRef.current,
       ],
       view: new View({
@@ -155,7 +121,6 @@ const MapView: React.FC<MapViewProps> = ({
       map.setTarget(undefined);
       mapRef.current = null;
       markerSourceRef.current.clear();
-      rasterFootprintSourceRef.current.clear();
     };
   }, []);
 
@@ -181,51 +146,7 @@ const MapView: React.FC<MapViewProps> = ({
   }, []);
 
   // -----------------------------
-  // 3) 행정경계 Feature 생성
-  // -----------------------------
-
-useEffect(() => {
-  const map = mapRef.current;
-  if (!map || !boundaries?.length) return;
-
-  const source = boundarySourceRef.current;
-  source.clear();
-
-  const geojson = new GeoJSON();
-
-  boundaries.forEach((b) => {
-    if (!b.geoJson) return;
-
-    try {
-      // ✅ 문자열일 수도 있으니 파싱
-      const geom =
-        typeof b.geoJson === "string" ? JSON.parse(b.geoJson) : b.geoJson;
-
-      // ✅ 단일 Feature든 MultiPolygon이든 배열로 통일
-      const features = geojson.readFeatures(geom, {
-        dataProjection: "EPSG:4326",
-        featureProjection: "EPSG:3857",
-      });
-
-      // ✅ 각각 Feature에 속성 추가
-      features.forEach((f) => {
-        f.setProperties({
-          admCode: b.admCode,
-          admName: b.admName,
-          level: b.level,
-        });
-      });
-
-      // ✅ 배열 단위로 추가
-      source.addFeatures(features);
-    } catch (err) {
-      console.error("❌ 경계 파싱 오류:", err, b);
-    }
-  });
-}, [boundaries]);
-
-  // -----------------------------
-  // 4) 마커 Feature 생성
+  // 3) 마커 Feature 생성
   // -----------------------------
   useEffect(() => {
     const map = mapRef.current;
@@ -249,7 +170,7 @@ useEffect(() => {
   }, [landmarks]);
 
   // -----------------------------
-  // 5) 선택된 마커 스타일 강조
+  // 4) 선택된 마커 스타일 강조
   // -----------------------------
   useEffect(() => {
     const layer = markerLayerRef.current;
@@ -275,7 +196,7 @@ useEffect(() => {
   }, [selectedLandmark]);
 
   // -----------------------------
-  // 6) 선택된 랜드마크 → 줌 + 팝업 이동
+  // 5) 선택된 랜드마크 → 줌 + 팝업 이동
   // -----------------------------
   useEffect(() => {
     const map = mapRef.current;
@@ -294,7 +215,7 @@ useEffect(() => {
   }, [selectedLandmark]);
 
   // -----------------------------
-  // 7) 마커 클릭 이벤트
+  // 6) 마커 클릭 이벤트
   // -----------------------------
   useEffect(() => {
     const map = mapRef.current;
@@ -331,12 +252,14 @@ useEffect(() => {
     };
   }, [onMarkerClick, landmarks, selectedLandmark]);
 
- // -----------------------------
-  // 8) 선택된 래스터 WMS 레이어 표시
+  // -----------------------------
+  // 7) 선택된 래스터 WMS 레이어 표시
   // -----------------------------
   useEffect(() => {
-    const source = rasterSourceRef.current;
+    const source = rasterLayerRef.current.getSource() as TileWMS | null;
     const layer = rasterLayerRef.current;
+
+    if (!source) return;
 
     // 선택된 인덱스 타입, 데이터, 랜드마크가 없으면 레이어 숨김
     if (!selectedIndexType || !rasterData.length || !selectedLandmark) {
@@ -362,13 +285,8 @@ useEffect(() => {
     const year = selectedRaster.year;
     const month = String(selectedRaster.month).padStart(2, "0");
 
-    // ▼▼▼▼▼ 여기를 수정해주세요 ▼▼▼▼▼
-    // 기존: .replace(/\s+/g, "_")  -> 언더바로 변경 (틀림)
-    // 수정: .replace(/\s+/g, "")   -> 공백 제거 (맞음)
-    const landmarkName = selectedLandmark.name.replace(/\s+/g, ""); 
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    const landmarkName = (selectedLandmark.name || "").replace(/\s+/g, "");
 
-    // 결과: raster:NDMI_2024_원주소금산출렁다리_02
     const layerName = `raster:${indexType}_${year}_${landmarkName}_${month}`;
 
     source.updateParams({
@@ -377,7 +295,7 @@ useEffect(() => {
 
     layer.setVisible(true);
   }, [selectedIndexType, rasterData, selectedLandmark]);
-  // 9) 렌더링
+  // 8) 렌더링
   // -----------------------------
   
   // 사용 가능한 indexType 목록

@@ -5,7 +5,7 @@ import type { Landmark } from "../types/Landmark";
 export const fetchLandmarks = async (): Promise<Landmark[]> => {
   try {
     // ⚠️ 주의: 백엔드 컨트롤러 주소가 "/api/landmark" (단수형)인지 확인하세요!
-    const res = await api.get("/api/landmarks"); 
+    const res = await apiClient.get("/api/landmarks"); 
 
     // 백엔드 응답 구조: { success: true, data: { type: "FeatureCollection", features: [...] } }
     const featureCollection = res.data?.data;

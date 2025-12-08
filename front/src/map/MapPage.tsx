@@ -76,7 +76,9 @@ const MapPage: React.FC = () => {
   // 기존 호환성을 위한 ndvi, ndmi 계산
   const ndvi = rasterData.find((r) => r.indexType === "NDVI") ?? null;
   const ndmi = rasterData.find((r) => r.indexType === "NDMI") ?? null;
-
+  const hasNdvi = !!ndvi;
+  const hasNdmi = !!ndmi;
+  const fireRisk = computeFireRisk(ndvi, ndmi);
   // -----------------------------
   //  랜드마크 조회
   // -----------------------------
@@ -456,7 +458,7 @@ const MapPage: React.FC = () => {
         gridTemplateColumns: "400px 1fr", // 왼쪽 살짝 넓힘
         height: "100vh",
         backgroundColor: "#f3f4f6",
-        overflow: "hidden",
+        overflow: "hidden", 
       }}
     >
       {/* ===== 왼쪽 대시보드 ===== */}

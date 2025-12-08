@@ -81,7 +81,7 @@ const MapView: React.FC<MapViewProps> = ({
   // ====== 래스터 레이어 (WMS) ======
   const rasterSourceRef = useRef(
     new ImageWMS({
-      url: "http://localhost:9090/geoserver/nurc/wms",
+      url: "http://localhost:9090/geoserver/raster/wms",
       params: {
         LAYERS: "",
         VERSION: "1.1.0",
@@ -331,19 +331,20 @@ useEffect(() => {
     };
   }, [onMarkerClick, landmarks, selectedLandmark]);
 
-  // -----------------------------
+ // -----------------------------
   // 8) 선택된 래스터 WMS 레이어 표시
   // -----------------------------
   useEffect(() => {
     const source = rasterSourceRef.current;
     const layer = rasterLayerRef.current;
 
+    // 선택된 인덱스 타입, 데이터, 랜드마크가 없으면 레이어 숨김
     if (!selectedIndexType || !rasterData.length || !selectedLandmark) {
-      // 레이어 숨기기
       layer.setVisible(false);
       return;
     }
 
+    // 현재 선택된 인덱스 타입에 맞는 데이터 찾기
     const selectedRaster = rasterData.find(
       (r) => r.indexType === selectedIndexType
     );
@@ -353,24 +354,29 @@ useEffect(() => {
       return;
     }
 
-    // 레이어 이름 생성: nurc:{landmarkId}_{indexType}_{year}_{month}_3km
-    const landmarkId = selectedLandmark.id;
+    // ▼▼▼▼▼ 수정된 부분 ▼▼▼▼▼
+    // 요청하신 패턴: raster:{indexType}_{year}_{landmarkName}_{month}
+    // 예시: raster:NDMI_2024_DDP동대문디자인플라자_02
+    
     const indexType = selectedRaster.indexType;
     const year = selectedRaster.year;
     const month = String(selectedRaster.month).padStart(2, "0");
 
-    const layerName = `nurc:${landmarkId}_${indexType}_${year}_${month}_3km`;
+    // ▼▼▼▼▼ 여기를 수정해주세요 ▼▼▼▼▼
+    // 기존: .replace(/\s+/g, "_")  -> 언더바로 변경 (틀림)
+    // 수정: .replace(/\s+/g, "")   -> 공백 제거 (맞음)
+    const landmarkName = selectedLandmark.name.replace(/\s+/g, ""); 
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
-    // WMS 파라미터 업데이트
+    // 결과: raster:NDMI_2024_원주소금산출렁다리_02
+    const layerName = `raster:${indexType}_${year}_${landmarkName}_${month}`;
+
     source.updateParams({
       LAYERS: layerName,
     });
 
-    // 레이어 표시
     layer.setVisible(true);
   }, [selectedIndexType, rasterData, selectedLandmark]);
-
-  // -----------------------------
   // 9) 렌더링
   // -----------------------------
   

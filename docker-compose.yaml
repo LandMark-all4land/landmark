@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  # 백엔드 컨테이너
+  backend:
+    container_name: landmark-backend
+    build:
+      context: ./back
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    env_file:
+      - ./back/.env
+    restart: unless-stopped
+
+#  프론트 컨테이너
+  front:
+    container_name: landmark-frontend
+    build:
+      context: ./front
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    restart: unless-stopped
+
+  # GeoServer 컨테이너
+  geoserver:
+    container_name: geoserver
+    image: kartoza/geoserver:2.24.4
+    ports:
+      # geoserver 포트는 컨테이너 내부적으로 8080 이지만, 백엔드와 충돌 피하기 위해 외부적으로 8082 포트로 매핑
+      - "8082:8080"
+    env_file:
+      - ./back/.env
+    environment:
+      #      SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+      #      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      #      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      AWS_ACCESS_KEY_ID: "${AWS_ACCESS_KEY_ID}"
+      AWS_SECRET_ACCESS_KEY: "${AWS_SECRET_ACCESS_KEY}"
+      AWS_REGION: "ap-northeast-2"
+      AWS_DEFAULT_REGION: "ap-northeast-2"
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME}
+      S3_PROPERTIES_LOCATION: "/settings/s3.properties"
+      S3_ALIAS: aws
+      #      S3_SERVER_URL: https://s3.ap-northeast-2.amazonaws.com
+      INITIAL_MEMORY: 512m
+      MAXIMUM_MEMORY: 2048m
+      COMMUNITY_EXTENSIONS: "s3-geotiff-plugin"
+      JAVA_OPTS: >-
+        -Ds3.properties.location=/settings/s3.properties
+        -DAWS_REGION=ap-northeast-2
+        -Daws.region=ap-northeast-2
+        -Daws.s3.pathStyleAccess=true
+      CATALINA_OPTS: >-
+        -Ds3.properties.location=/settings/s3.properties
+        -DAWS_REGION=ap-northeast-2
+        -Daws.region=ap-northeast-2
+        -Daws.s3.pathStyleAccess=true
+
+    volumes:
+      - geoserver_data:/opt/geoserver/data_dir
+      - ./back/settings/s3.properties:/settings/s3.properties
+    restart: always
+
+# geoserver 설정 정보 저장 공간
+volumes:
+  geoserver_data:
+
+# 백엔드, geoserver 컨테이너가 같은 네트워크에 속하도록
+networks:
+  default:
+    name: landmark-network

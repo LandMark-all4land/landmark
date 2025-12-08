@@ -1,5 +1,6 @@
 // src/map/components/MapView.tsx
 import React, { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import Map from "ol/Map";
 import View from "ol/View";
 import TileLayer from "ol/layer/Tile";
@@ -25,6 +26,7 @@ interface MapViewProps {
   rasterData?: RasterStat[];
   selectedIndexType?: string | null;
   onIndexTypeSelect?: (indexType: string | null) => void;
+  rasterLoading?: boolean;
 }
 
 const MapView: React.FC<MapViewProps> = ({
@@ -36,6 +38,7 @@ const MapView: React.FC<MapViewProps> = ({
   rasterData = [],
   selectedIndexType = null,
   onIndexTypeSelect,
+  rasterLoading = false,
 }) => {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<Map | null>(null);
@@ -128,7 +131,12 @@ const MapView: React.FC<MapViewProps> = ({
   // 2) 팝업 Overlay
   // -----------------------------
   useEffect(() => {
-    if (!mapRef.current || !popupRef.current) return;
+    if (!mapRef.current) return;
+
+    // 팝업 엘리먼트가 아직 없다면 생성
+    if (!popupRef.current) {
+      popupRef.current = document.createElement("div");
+    }
 
     const overlay = new Overlay({
       element: popupRef.current,
@@ -142,6 +150,7 @@ const MapView: React.FC<MapViewProps> = ({
 
     return () => {
       mapRef.current?.removeOverlay(overlay);
+      overlay.setElement(undefined);
     };
   }, []);
 
@@ -312,55 +321,77 @@ const MapView: React.FC<MapViewProps> = ({
         position: "relative",
       }}
     >
-      {/* 팝업 DOM */}
-      <div
-        ref={popupRef}
-        style={{
-          pointerEvents: "none",
-          minWidth: 160,
-          maxWidth: 240,
-          transform: "translateY(-6px)",
-          zIndex: 1000,
-        }}
-      >
-        {selectedLandmark && (
+      {/* 래스터 로딩 상태 표시 */}
+      {rasterLoading && (
+        <div
+          style={{
+            position: "absolute",
+            top: 16,
+            right: 16,
+            zIndex: 1100,
+            padding: "8px 12px",
+            borderRadius: 8,
+            backgroundColor: "rgba(255,255,255,0.9)",
+            boxShadow: "0 6px 18px rgba(15,23,42,0.18)",
+            border: "1px solid rgba(229,231,235,0.9)",
+            color: "#111827",
+            fontSize: 12,
+            fontWeight: 600,
+          }}
+        >
+          래스터 불러오는 중...
+        </div>
+      )}
+
+      {/* 팝업 포털 렌더 */}
+      {popupRef.current &&
+        createPortal(
           <div
             style={{
-              backgroundColor: "#ffffff",
-              borderRadius: 12,
-              padding: "8px 10px",
-              boxShadow: "0 10px 25px rgba(15,23,42,0.35)",
-              border: "1px solid rgba(209,213,219,0.9)",
-              color: "#111827",
-              fontSize: 12,
+              pointerEvents: "none",
+              minWidth: 160,
+              maxWidth: 240,
+              transform: "translateY(-6px)",
+              zIndex: 1000,
             }}
           >
-            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>
-              {selectedLandmark.name || "이름 없음"}
-            </div>
-            <div
-              style={{
-                fontSize: 11,
-                color: "#4b5563",
-                marginBottom: 2,
-              }}
-            >
-              #{selectedLandmark.id}
-            </div>
-            <div
-              style={{
-                fontSize: 11,
-                color: "#6b7280",
-              }}
-            >
-              {
-                (selectedLandmark.address
-                  ? ` · ${selectedLandmark.address}`
-                  : "")}
-            </div>
-          </div>
+            {selectedLandmark && (
+              <div
+                style={{
+                  backgroundColor: "#ffffff",
+                  borderRadius: 12,
+                  padding: "8px 10px",
+                  boxShadow: "0 10px 25px rgba(15,23,42,0.35)",
+                  border: "1px solid rgba(209,213,219,0.9)",
+                  color: "#111827",
+                  fontSize: 12,
+                }}
+              >
+                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>
+                  {selectedLandmark.name || "이름 없음"}
+                </div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "#4b5563",
+                    marginBottom: 2,
+                  }}
+                >
+                  #{selectedLandmark.id}
+                </div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "#6b7280",
+                  }}
+                >
+                  {selectedLandmark.address ? ` · ${selectedLandmark.address}` : ""}
+                </div>
+              </div>
+            )}
+          </div>,
+          popupRef.current
         )}
-      </div>
 
       {/* 오른쪽 하단 indexType 버튼 */}
       {availableIndexTypes.length > 0 && (

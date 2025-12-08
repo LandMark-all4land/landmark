@@ -10,7 +10,6 @@ import type { RasterStat } from "./types/RasterStat";
 import { fetchLandmarks } from "./api/landmarkApi";
 import { fetchLandmarkRasters } from "./api/rasterApi";
 import { authUtils } from "../auth/authUtils";
-import { useNavigate } from "react-router-dom";
 
 // === 상수 / 컴포넌트 ===
 import { MONTH_PRESETS, type MonthPreset } from "./constants/monthPresets";
@@ -50,7 +49,6 @@ function computeFireRisk(
 }
 
 const MapPage: React.FC = () => {
-  const navigate = useNavigate();
 
   // ===== 랜드마크 / 선택 상태 =====
   const [landmarks, setLandmarks] = useState<Landmark[]>([]);
@@ -178,7 +176,6 @@ const MapPage: React.FC = () => {
       return;
     }
     setSelectedMonth(preset);
-    setSelectedIndexType(null);
   };
 
   // 래스터 데이터 조회
@@ -203,10 +200,13 @@ const MapPage: React.FC = () => {
         );
 
         setRasterData(rows);
-        
-        // 기본적으로 첫 번째 래스터를 선택 (있을 경우)
+
+        // 이전에 선택한 인덱스 타입이 있으면 유지, 없으면 첫 번째 선택
         if (rows.length > 0) {
-          setSelectedIndexType(rows[0].indexType);
+          const keep =
+            rows.find((r) => r.indexType === selectedIndexType)?.indexType ??
+            rows[0].indexType;
+          setSelectedIndexType(keep);
         } else {
           setSelectedIndexType(null);
         }
@@ -570,6 +570,7 @@ const MapPage: React.FC = () => {
           rasterData={rasterData}
           selectedIndexType={selectedIndexType}
           onIndexTypeSelect={setSelectedIndexType}
+          rasterLoading={rasterLoading}
         />
 
         {/* 검색창 + 월 버튼 */}

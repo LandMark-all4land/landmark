@@ -5,10 +5,12 @@ import MapView from "./components/MapView";
 // === 타입 ===
 import type { Landmark } from "./types/Landmark";
 import type { RasterStat } from "./types/RasterStat";
+import type { RiskData } from "./api/riskApi";
 
 // === API ===
 import { fetchLandmarks } from "./api/landmarkApi";
 import { fetchLandmarkRasters } from "./api/rasterApi";
+import { fetchLandmarkRisk } from "./api/riskApi";
 import { authUtils } from "../auth/authUtils";
 
 // === 상수 / 컴포넌트 ===
@@ -16,40 +18,10 @@ import { MONTH_PRESETS, type MonthPreset } from "./constants/monthPresets";
 import RasterDashboard from "./components/RasterDashboard";
 import NotesPanel from "./components/NotesPanel";
 
-// 도넛 차트용 recharts
-import { PieChart, Pie, Cell } from "recharts";
-
-// ---- 산불 위험도 계산 함수 (원래 Dashboard 로직 그대로) ----
-interface FireRiskResult {
-  percentage: number; // 0 ~ 100
-  isSafe: boolean;
-  diffMaxMin: number;
-  diffMean: number;
-}
-
-function computeFireRisk(
-  ndvi: RasterStat | null,
-  ndmi: RasterStat | null
-): FireRiskResult | null {
-  if (!ndvi || !ndmi) return null;
-
-  const diffMaxMin = ndvi.valMax - ndmi.valMin;
-  const diffMean = ndvi.valMean - ndmi.valMean;
-
-  const normalized = Math.max(0, Math.min(1, (diffMaxMin + 2) / 4));
-  const percentage = Math.round(normalized * 100);
-  const isSafe = diffMaxMin < diffMean;
-
-  return {
-    percentage,
-    isSafe,
-    diffMaxMin,
-    diffMean,
-  };
-}
-
+// =============================
+//  MapPage
+// =============================
 const MapPage: React.FC = () => {
-
   // ===== 랜드마크 / 선택 상태 =====
   const [landmarks, setLandmarks] = useState<Landmark[]>([]);
   const [selectedLandmark, setSelectedLandmark] = useState<Landmark | null>(
@@ -64,19 +36,24 @@ const MapPage: React.FC = () => {
   const [searchText, setSearchText] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  // ===== 월 선택 & 래스터 데이터 상태 =====
+  // ===== 월 선택 & 래스터 데이터 상태 (바 차트용) =====
   const [selectedMonth, setSelectedMonth] = useState<MonthPreset | null>(null);
   const [rasterLoading, setRasterLoading] = useState(false);
   const [rasterError, setRasterError] = useState<string | null>(null);
   const [rasterData, setRasterData] = useState<RasterStat[]>([]);
-  const [selectedIndexType, setSelectedIndexType] = useState<string | null>(null);
-  
-  // 기존 호환성을 위한 ndvi, ndmi 계산
+  const [selectedIndexType, setSelectedIndexType] = useState<string | null>(
+    null
+  );
+
+  // 바차트용 NDVI / NDMI 추출 (바 차트 로직은 유지)
   const ndvi = rasterData.find((r) => r.indexType === "NDVI") ?? null;
   const ndmi = rasterData.find((r) => r.indexType === "NDMI") ?? null;
-  const hasNdvi = !!ndvi;
-  const hasNdmi = !!ndmi;
-  const fireRisk = computeFireRisk(ndvi, ndmi);
+
+  // ===== 산불 위험도 (risk API 전용 상태) =====
+  const [riskData, setRiskData] = useState<RiskData | null>(null);
+  const [riskLoading, setRiskLoading] = useState(false);
+  const [riskError, setRiskError] = useState<string | null>(null);
+
   // -----------------------------
   //  랜드마크 조회
   // -----------------------------
@@ -135,6 +112,8 @@ const MapPage: React.FC = () => {
       setRasterData([]);
       setSelectedIndexType(null);
       setRasterError(null);
+      setRiskData(null);
+      setRiskError(null);
     }
   };
 
@@ -153,16 +132,18 @@ const MapPage: React.FC = () => {
       setRasterData([]);
       setSelectedIndexType(null);
       setRasterError(null);
+      setRiskData(null);
+      setRiskError(null);
     }
   };
 
   const handleLogout = () => {
     authUtils.removeToken();
-    window.location.href = '/';
+    window.location.href = "/";
   };
 
   // -----------------------------
-  //  월 버튼 클릭 / 래스터 조회
+  //  월 버튼 클릭
   // -----------------------------
   const handleMonthClick = (preset: MonthPreset) => {
     if (
@@ -173,12 +154,16 @@ const MapPage: React.FC = () => {
       setRasterData([]);
       setSelectedIndexType(null);
       setRasterError(null);
+      setRiskData(null);
+      setRiskError(null);
       return;
     }
     setSelectedMonth(preset);
   };
 
-  // 래스터 데이터 조회
+  // -----------------------------
+  //  래스터 데이터 조회 (바 차트용)
+  // -----------------------------
   useEffect(() => {
     if (!selectedLandmark || !selectedMonth) {
       setRasterData([]);
@@ -224,6 +209,43 @@ const MapPage: React.FC = () => {
   }, [selectedLandmark, selectedMonth]);
 
   // -----------------------------
+  //  산불 위험도 조회 (risk API용)
+  // -----------------------------
+  useEffect(() => {
+    if (!selectedLandmark || !selectedMonth) {
+      setRiskData(null);
+      setRiskError(null);
+      return;
+    }
+
+    const loadRisk = async () => {
+      try {
+        setRiskLoading(true);
+        setRiskError(null);
+
+        const { year, month } = selectedMonth;
+        const data = await fetchLandmarkRisk(selectedLandmark.id!, year, month);
+
+        if (!data) {
+          setRiskData(null);
+          setRiskError("산불 위험도 데이터를 불러오지 못했습니다.");
+          return;
+        }
+
+        setRiskData(data);
+      } catch (e: any) {
+        console.error("산불 위험도 조회 실패:", e);
+        setRiskError(e.message ?? "산불 위험도 데이터를 불러오지 못했습니다.");
+        setRiskData(null);
+      } finally {
+        setRiskLoading(false);
+      }
+    };
+
+    loadRisk();
+  }, [selectedLandmark, selectedMonth]);
+
+  // -----------------------------
   //  월 버튼 렌더링
   // -----------------------------
   const renderMonthButtons = () => (
@@ -255,10 +277,11 @@ const MapPage: React.FC = () => {
   );
 
   // -----------------------------
-  //  산불 위험도 카드 렌더링 (도넛 차트)
+  //  산불 위험도 카드 렌더링
+  //  (risk API + 텍스트 블록)
   // -----------------------------
   const renderFireRiskCard = () => {
-    // 상태별 안내 문구
+    // 월 필터 이전 안내 문구들은 그대로 유지
     if (!selectedLandmark) {
       return (
         <div
@@ -289,7 +312,7 @@ const MapPage: React.FC = () => {
       );
     }
 
-    if (rasterLoading) {
+    if (riskLoading) {
       return (
         <div
           style={{
@@ -299,12 +322,12 @@ const MapPage: React.FC = () => {
             padding: "16px 8px",
           }}
         >
-          래스터 데이터를 불러오는 중입니다...
+          산불 위험도 데이터를 불러오는 중입니다...
         </div>
       );
     }
 
-    if (rasterError) {
+    if (riskError) {
       return (
         <div
           style={{
@@ -314,12 +337,12 @@ const MapPage: React.FC = () => {
             padding: "16px 8px",
           }}
         >
-          에러: {rasterError}
+          에러: {riskError}
         </div>
       );
     }
 
-    if (!hasNdvi || !hasNdmi || !fireRisk) {
+    if (!riskData) {
       return (
         <div
           style={{
@@ -329,28 +352,57 @@ const MapPage: React.FC = () => {
             padding: "16px 8px",
           }}
         >
-          NDMI 데이터가 없어 산불 위험도를 계산할 수 없습니다.
-          <br />
-          NDVI 지수만 참고 가능합니다.
+          선택한 월의 산불 위험도 데이터가 없습니다.
         </div>
       );
     }
 
-    const statusText = fireRisk.isSafe ? "산불 안전 지역" : "산불 위험 지역";
-    const statusEmoji = fireRisk.isSafe ? "🟢" : "🔥";
+    // --- 위험 단계 매핑 ---
+    const rawLevel = (riskData.riskLevelDescription || "").toLowerCase();
+    let levelKey: "low" | "alert" | "critical";
 
-    const detailLines = fireRisk.isSafe
-      ? [
-          "비교적 안전한 상태입니다.",
-          "지속적인 모니터링을 통해 변화를 관찰하세요.",
-        ]
-      : [
+    if (rawLevel.includes("critical")) levelKey = "critical";
+    else if (rawLevel.includes("alert")) levelKey = "alert";
+    else if (rawLevel.includes("low")) levelKey = "low";
+    else {
+      // 혹시 모를 예외 대비: riskScore 기준으로 분류
+      if (riskData.riskScore >= 0.7) levelKey = "critical";
+      else if (riskData.riskScore > 0.5) levelKey = "alert";
+      else levelKey = "low";
+    }
+
+    const levelConfig = {
+      low: {
+        label: "1단계 - 낮음",
+        color: "#16a34a",
+        bg: "#dcfce7",
+        title: "🟢 산불 안전 지역 ( 위험도 1단계 )",
+        lines: [
+          "현재 산불 위험 수준이 낮은 상태입니다.",
+          "정기적인 모니터링만으로도 충분합니다.",
+        ],
+      },
+      alert: {
+        label: "2단계 - 주의",
+        color: "#f97316",
+        bg: "#ffedd5",
+        title: "🟠 산불 주의 지역",
+        lines: [
+          "산불 가능성이 서서히 높아지고 있습니다.",
+          "상황 변화를 자주 확인해 주세요.",
+        ],
+      },
+      critical: {
+        label: "3단계 - 위험",
+        color: "#dc2626",
+        bg: "#fee2e2",
+        title: "🔥 산불 위험 지역",
+        lines: [
           "산불에 취약할 수 있는 상태입니다.",
-          "해당지역의 집중 모니터링이 필요합니다."
-      
-        ];
-
-    const percentage = fireRisk.percentage;
+          "해당지역의 집중 모니터링이 필요합니다.",
+        ],
+      },
+    }[levelKey];
 
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -363,69 +415,118 @@ const MapPage: React.FC = () => {
         >
           산불 위험도
         </div>
+        
+       {/* === [산불 위험도] 범례 (항상 표시) === */}
+      <div
+        style={{
+          fontSize: 11,
+          color: "#6b7280",
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+        }}
+      >
+        <div>
+          <strong>기준 범례(건조 연료 지수 DFI) - NDVI/NDMI 가중치로 건조도 계산</strong>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 8,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {/* 1단계: 0.5 이하 */}
+           <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: 999,
+                backgroundColor: "#16a34a",
+              }}
+            />
+            <span>1단계 (0.5 이하)</span>
+          </div>
 
-        {/* 도넛 차트 영역: 가운데 정렬 */}
+          {/* 2단계: 0.5 초과 */}
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: 999,
+                backgroundColor: "#f97316",
+              }}
+            />
+            <span>2단계 (0.5 초과)</span>
+          </div>
+
+          {/* 3단계: 0.7 이상 ~ 1.0 이하 */}
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            <span style={{ fontSize: 13 }}>🔥</span>
+            <span>3단계 (0.7 이상 ~ 1.0)</span>
+          </div>
+        </div>
+      </div>
+
+
+        {/* === [산불 위험도] 위험 단계 블록 (도넛 제거, 중앙 텍스트 강조) === */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            marginTop: 6,
+            marginBottom: 4,
           }}
         >
           <div
             style={{
-              position: "relative",
-              width: 310,
-              height: 120,
-              flexShrink: 0,
+              minWidth: 150,
+              maxWidth: "100%",
+            padding: "12px 24px",
+            borderRadius: 12,
+            backgroundColor: levelConfig.bg,
+            border: `1px solid ${levelConfig.color}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
             }}
           >
-            <PieChart width={310} height={120}>
-              <Pie
-                data={[
-                  { name: "위험도", value: percentage },
-                  { name: "나머지", value: 100 - percentage },
-                ]}
-                startAngle={90}
-                endAngle={-270}
-                innerRadius={42} // 조금 더 얇은 안쪽 반지름
-                outerRadius={59} // 더 큰 바깥 반지름 → 전체 좀 더 크고 두꺼워짐
-                paddingAngle={0}
-                dataKey="value"
-                stroke="none"
-              >
-                <Cell fill={fireRisk.isSafe ? "#22c55e" : "#ef4444"} />
-                <Cell fill="#e5e7eb" />
-              </Pie>
-            </PieChart>
-
-            {/* 가운데 퍼센트 텍스트만 (차트 안 가리도록) */}
-            <div
+            <span
               style={{
-                position: "absolute",
-                inset: 0,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                pointerEvents: "none",
+                fontSize: 26,
+                fontWeight: 700,
+                color: levelConfig.color,
               }}
             >
-              <div
-                style={{
-                  fontSize: 26,
-                  fontWeight: 700,
-                  color: fireRisk.isSafe ? "#16a34a" : "#dc2626",
-                  lineHeight: 1.1,
-                }}
-              >
-                {percentage}%
-              </div>
-            </div>
+              {levelConfig.label}
+            </span>
           </div>
         </div>
 
-        {/* 설명 텍스트: 아이콘/타이틀 + 두 줄 설명 (마지막 줄에 '모니터링이 필요합니다.' 개행) */}
+        {/* 설명 텍스트 */}
         <div
           style={{
             fontSize: 13,
@@ -439,10 +540,10 @@ const MapPage: React.FC = () => {
               marginBottom: 4,
             }}
           >
-            {statusEmoji} {statusText}
+            {levelConfig.title}
           </div>
-          <div>{detailLines[0]}</div>
-          <div>{detailLines[1]}</div>
+          <div>{levelConfig.lines[0]}</div>
+          <div>{levelConfig.lines[1]}</div>
         </div>
       </div>
     );
@@ -458,7 +559,7 @@ const MapPage: React.FC = () => {
         gridTemplateColumns: "400px 1fr", // 왼쪽 살짝 넓힘
         height: "100vh",
         backgroundColor: "#f3f4f6",
-        overflow: "hidden", 
+        overflow: "hidden",
       }}
     >
       {/* ===== 왼쪽 대시보드 ===== */}
@@ -508,7 +609,7 @@ const MapPage: React.FC = () => {
           </button>
         </div>
 
-        {/* 1) 산불 위험도 카드 (도넛) */}
+        {/* 1) 산불 위험도 카드 (risk API 기반 텍스트 블록) */}
         <section
           style={{
             backgroundColor: "#ffffff",
@@ -523,7 +624,7 @@ const MapPage: React.FC = () => {
           {renderFireRiskCard()}
         </section>
 
-        {/* 2) NDVI / NDMI 차트 카드 */}
+        {/* 2) NDVI / NDMI 차트 카드 (바 차트 - 기존 로직 유지) */}
         <section
           style={{
             backgroundColor: "#ffffff",
@@ -535,6 +636,7 @@ const MapPage: React.FC = () => {
             flexDirection: "column",
           }}
         >
+          {/* === [NDVI / NDMI] 바 차트 === */}
           <RasterDashboard
             landmark={selectedLandmark}
             selectedMonth={selectedMonth}

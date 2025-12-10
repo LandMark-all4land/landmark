@@ -294,7 +294,10 @@ const MapView: React.FC<MapViewProps> = ({
     const year = selectedRaster.year;
     const month = String(selectedRaster.month).padStart(2, "0");
 
-    const landmarkName = (selectedLandmark.name || "").replace(/\s+/g, "");
+    // WMS 레이어명 생성 시 괄호/쉼표 제거 + 공백 제거
+    const landmarkName = (selectedLandmark.name || "")
+      .replace(/[(),]/g, "")
+      .replace(/\s+/g, "");
 
     const layerName = `raster:${indexType}_${year}_${landmarkName}_${month}`;
 

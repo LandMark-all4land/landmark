@@ -2,7 +2,7 @@ import axios from 'axios';
 import { authUtils } from '../auth/authUtils';
 
 const apiClient = axios.create({
-  // baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080',
 });
 
 // 요청 인터셉터: 모든 요청에 Authorization 헤더 추가

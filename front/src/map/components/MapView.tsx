@@ -55,7 +55,7 @@ const MapView: React.FC<MapViewProps> = ({
   const rasterLayerRef = useRef(
     new TileLayer({
       source: new TileWMS({
-        url: "http://localhost:9090/geoserver/raster/wms",
+        url: "https://landmark-map.store/geoserver/raster/wms",
         params: {
           LAYERS: "",
           VERSION: "1.1.0",

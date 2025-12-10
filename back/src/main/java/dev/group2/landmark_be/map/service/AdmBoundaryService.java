@@ -9,6 +9,8 @@ import org.wololo.geojson.GeoJSON;
 import org.wololo.jts2geojson.GeoJSONWriter;
 
 import dev.group2.landmark_be.map.dto.response.AdmBoundaryResponse;
+import dev.group2.landmark_be.map.dto.response.AdmBoundarySimpleProjection;
+import dev.group2.landmark_be.map.dto.response.AdmBoundarySimpleResponse;
 import dev.group2.landmark_be.map.dto.response.AdmBoundarySimplifiedProjection;
 import dev.group2.landmark_be.map.entity.AdmBoundary;
 import dev.group2.landmark_be.map.repository.AdmBoundaryRepository;
@@ -35,6 +37,18 @@ public class AdmBoundaryService {
 				projection.admName(),
 				projection.geomJson(),
 				projection.level()
+			))
+			.toList();
+	}
+
+	@Transactional(readOnly = true)
+	public List<AdmBoundarySimpleResponse> getSimpleSidoBoundaries() {
+		// geomJson 없이 admCode와 admName만 조회 (geom 필드 제외)
+		List<AdmBoundarySimpleProjection> projections = admBoundaryRepository.findAllSimple();
+		return projections.stream()
+			.map(projection -> new AdmBoundarySimpleResponse(
+				projection.getAdmCode(),
+				projection.getAdmName()
 			))
 			.toList();
 	}

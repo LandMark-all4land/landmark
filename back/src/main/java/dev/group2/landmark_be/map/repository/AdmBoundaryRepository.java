@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import dev.group2.landmark_be.global.exception.BaseException;
+import dev.group2.landmark_be.map.dto.response.AdmBoundarySimpleProjection;
 import dev.group2.landmark_be.map.dto.response.AdmBoundarySimplifiedProjection;
 import dev.group2.landmark_be.map.entity.AdmBoundary;
 
@@ -35,4 +36,8 @@ public interface AdmBoundaryRepository extends JpaRepository<AdmBoundary, String
 
 	// tolerance: 오차 허용 거리,
 	// 상세 뷰를 위해서는 0.0001정도로 정밀하게 잡는 게 좋지만, 전체 뷰와 속도를 위해서 0.005로 설정
+
+	// 관리자 페이지 드롭다운용 - admCode와 admName만 조회 (geom 제외)
+	@Query("SELECT a.admCode as admCode, a.admName as admName FROM AdmBoundary a")
+	List<AdmBoundarySimpleProjection> findAllSimple();
 }

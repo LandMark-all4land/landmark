@@ -1,5 +1,6 @@
 package dev.group2.landmark_be.map.controller;
 import dev.group2.landmark_be.global.dto.ApiResponse;
+import dev.group2.landmark_be.map.dto.request.LandmarkCreateRequest;
 import dev.group2.landmark_be.map.dto.response.LandmarkRasterResponse;
 import dev.group2.landmark_be.map.dto.response.LandmarkResponse;
 import dev.group2.landmark_be.map.dto.response.RiskResponse;
@@ -7,11 +8,13 @@ import dev.group2.landmark_be.map.repository.LandmarkRepository;
 import dev.group2.landmark_be.map.service.LandmarkRasterService;
 import dev.group2.landmark_be.map.service.LandmarkService;
 import dev.group2.landmark_be.map.service.RiskService;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -73,5 +76,12 @@ public class LandmarkController {
 		return ApiResponse.success(risk);
 	}
 
+	// 관리자 전용 - 랜드마크 생성
+	@PostMapping
+	@PreAuthorize("hasRole('ADMIN')")
+	public ApiResponse<LandmarkResponse> createLandmark(@Valid @RequestBody LandmarkCreateRequest request) {
+		LandmarkResponse response = landmarkService.createLandmark(request);
+		return ApiResponse.success(response);
+	}
 
 }

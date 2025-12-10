@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import dev.group2.landmark_be.global.dto.ApiResponse;
 import dev.group2.landmark_be.map.dto.response.AdmBoundaryResponse;
+import dev.group2.landmark_be.map.dto.response.AdmBoundarySimpleResponse;
 import dev.group2.landmark_be.map.service.AdmBoundaryService;
 import lombok.RequiredArgsConstructor;
 
@@ -23,6 +24,13 @@ public class AdmBoundaryController {
 	@GetMapping("/boundaries")
 	public ApiResponse<List<AdmBoundaryResponse>> getAllAdmBoundaries() {
 		List<AdmBoundaryResponse> responseList = admBoundaryService.getAllSidoBoundaries();
+		return ApiResponse.success(responseList);
+	}
+
+	// 관리자 페이지 드롭다운용 - 간단한 행정구역 목록 (geomJson 제외)
+	@GetMapping("/boundaries/simple")
+	public ApiResponse<List<AdmBoundarySimpleResponse>> getSimpleAdmBoundaries() {
+		List<AdmBoundarySimpleResponse> responseList = admBoundaryService.getSimpleSidoBoundaries();
 		return ApiResponse.success(responseList);
 	}
 }

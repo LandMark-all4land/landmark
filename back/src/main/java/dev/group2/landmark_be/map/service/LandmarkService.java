@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +17,7 @@ import org.wololo.jts2geojson.GeoJSONWriter;
 import dev.group2.landmark_be.global.exception.AdmBoundaryNotFoundException;
 import dev.group2.landmark_be.global.exception.ErrorCode;
 import dev.group2.landmark_be.global.exception.LandmarkNotFoundException;
+import dev.group2.landmark_be.map.dto.request.LandmarkCreateRequest;
 import dev.group2.landmark_be.map.dto.response.LandmarkResponse;
 import dev.group2.landmark_be.map.entity.AdmBoundary;
 import dev.group2.landmark_be.map.entity.Landmark;
@@ -118,5 +121,29 @@ public class LandmarkService {
 		);
 	}
 
+	@Transactional
+	public LandmarkResponse createLandmark(LandmarkCreateRequest request) {
+		// 1. 행정구역 존재 확인
+		AdmBoundary admBoundary = admBoundaryRepository.findById(request.admCode())
+			.orElseThrow(() -> new AdmBoundaryNotFoundException(ErrorCode.ADM_BOUNDARY_NOT_FOUND));
+
+		// 2. 위도/경도로 Point geometry 생성 (SRID 4326 = WGS84)
+		GeometryFactory geometryFactory = new GeometryFactory();
+		Point point = geometryFactory.createPoint(new Coordinate(request.longitude(), request.latitude()));
+		point.setSRID(4326);
+
+		// 3. Landmark 엔티티 생성 및 저장
+		Landmark landmark = Landmark.builder()
+			.name(request.name())
+			.address(request.address())
+			.geom(point)
+			.admBoundary(admBoundary)
+			.build();
+
+		Landmark savedLandmark = landmarkRepository.save(landmark);
+
+		// 4. Response 변환 후 반환
+		return convertToResponse(savedLandmark);
+	}
 
 }

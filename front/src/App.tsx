@@ -3,6 +3,7 @@ import { AuthProvider } from './auth/AuthContext';
 import LoginPage from './pages/LoginPage';
 import OAuthCallback from './pages/OAuthCallback';
 import MapPage from './map/MapPage';
+import AdminPage from './pages/AdminPage';
 import ProtectedRoute from './auth/ProtectedRoute';
 import './App.css';
 
@@ -18,6 +19,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <MapPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <AdminPage />
               </ProtectedRoute>
             }
           />

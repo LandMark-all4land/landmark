@@ -44,4 +44,26 @@ public interface LandmarkRepository extends JpaRepository<Landmark, Long> {
 
 	// 랜드마크 이름으로 직접 검색
 	List<Landmark> findByNameContainingIgnoreCase(String name);
+
+	// 관리자 페이지용: 모든 랜드마크를 AdmBoundary와 함께 조회 (N+1 방지)
+	@Query("""
+		SELECT l
+		FROM Landmark l
+		JOIN FETCH l.admBoundary
+		ORDER BY l.id
+		""")
+	List<Landmark> findAllWithAdmBoundary();
+
+	// 페이지네이션: 특정 페이지의 랜드마크만 조회 (N+1 방지)
+	@Query(value = """
+		SELECT l
+		FROM Landmark l
+		JOIN FETCH l.admBoundary
+		ORDER BY l.id
+		""")
+	List<Landmark> findAllWithAdmBoundaryPaginated(org.springframework.data.domain.Pageable pageable);
+
+	// 전체 랜드마크 개수
+	@Query("SELECT COUNT(l) FROM Landmark l")
+	long countAllLandmarks();
 }

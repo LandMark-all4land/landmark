@@ -64,4 +64,44 @@ public interface LandmarkRasterRepository extends JpaRepository<LandmarkRaster, 
 		@Param("year") Integer year,
 		@Param("month") Integer month
 	);
+
+	// 관리자 페이지용: 모든 랜드마크의 특정 연도 1~5월 데이터 한 번에 조회
+	@Query(value = """
+		SELECT
+			r.landmark_id as landmarkId,
+			r.year as year,
+			r.month as month,
+			r.index_type as indexType,
+			r.val_mean as valMean
+		FROM
+			app.landmark_raster r
+		WHERE
+			r.year = :year
+			and r.month BETWEEN 1 AND 5
+			and r.index_type in ('NDVI', 'NDMI')
+		ORDER BY r.landmark_id, r.month, r.index_type
+		""", nativeQuery = true)
+	List<RasterStatsProjection> findAllStatsByYearForMonths1To5(@Param("year") Integer year);
+
+	// 페이지네이션: 특정 랜드마크들의 1~5월 데이터만 조회
+	@Query(value = """
+		SELECT
+			r.landmark_id as landmarkId,
+			r.year as year,
+			r.month as month,
+			r.index_type as indexType,
+			r.val_mean as valMean
+		FROM
+			app.landmark_raster r
+		WHERE
+			r.landmark_id IN :landmarkIds
+			and r.year = :year
+			and r.month BETWEEN 1 AND 5
+			and r.index_type in ('NDVI', 'NDMI')
+		ORDER BY r.landmark_id, r.month, r.index_type
+		""", nativeQuery = true)
+	List<RasterStatsProjection> findStatsByLandmarkIdsAndYearForMonths1To5(
+		@Param("landmarkIds") List<Long> landmarkIds,
+		@Param("year") Integer year
+	);
 }

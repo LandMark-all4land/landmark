@@ -1,8 +1,10 @@
 package dev.group2.landmark_be.map.controller;
 import dev.group2.landmark_be.global.dto.ApiResponse;
+import dev.group2.landmark_be.global.dto.PageResponse;
 import dev.group2.landmark_be.map.dto.request.LandmarkCreateRequest;
 import dev.group2.landmark_be.map.dto.response.LandmarkRasterResponse;
 import dev.group2.landmark_be.map.dto.response.LandmarkResponse;
+import dev.group2.landmark_be.map.dto.response.LandmarkWithMonthlyDataResponse;
 import dev.group2.landmark_be.map.dto.response.RiskResponse;
 import dev.group2.landmark_be.map.repository.LandmarkRepository;
 import dev.group2.landmark_be.map.service.LandmarkRasterService;
@@ -82,6 +84,26 @@ public class LandmarkController {
 	public ApiResponse<LandmarkResponse> createLandmark(@Valid @RequestBody LandmarkCreateRequest request) {
 		LandmarkResponse response = landmarkService.createLandmark(request);
 		return ApiResponse.success(response);
+	}
+
+	// 관리자 전용 - 랜드마크 삭제
+	@DeleteMapping("/{landmarkId}")
+	@PreAuthorize("hasRole('ADMIN')")
+	public ApiResponse<Void> deleteLandmark(@PathVariable Long landmarkId) {
+		landmarkService.deleteLandmark(landmarkId);
+		return ApiResponse.success(null);
+	}
+
+	// 관리자 전용 - 페이지네이션으로 랜드마크와 월별 데이터 조회
+	@GetMapping("/admin/monthly")
+	@PreAuthorize("hasRole('ADMIN')")
+	public ApiResponse<PageResponse<LandmarkWithMonthlyDataResponse>> getAllLandmarksWithMonthlyData(
+		@RequestParam @NotNull @Min(2000) Integer year,
+		@RequestParam(defaultValue = "0") int page,
+		@RequestParam(defaultValue = "10") int size
+	) {
+		PageResponse<LandmarkWithMonthlyDataResponse> landmarks = landmarkService.getAllLandmarksWithMonthlyData(year, page, size);
+		return ApiResponse.success(landmarks);
 	}
 
 }

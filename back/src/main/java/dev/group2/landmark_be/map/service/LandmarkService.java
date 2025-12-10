@@ -1,6 +1,7 @@
 package dev.group2.landmark_be.map.service;
 
 import java.net.URI;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -14,16 +15,22 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 import org.wololo.jts2geojson.GeoJSONWriter;
 
+import dev.group2.landmark_be.global.dto.PageResponse;
 import dev.group2.landmark_be.global.exception.AdmBoundaryNotFoundException;
 import dev.group2.landmark_be.global.exception.ErrorCode;
 import dev.group2.landmark_be.global.exception.LandmarkNotFoundException;
 import dev.group2.landmark_be.map.dto.request.LandmarkCreateRequest;
 import dev.group2.landmark_be.map.dto.response.LandmarkResponse;
+import dev.group2.landmark_be.map.dto.response.LandmarkWithMonthlyDataResponse;
+import dev.group2.landmark_be.map.dto.response.RasterStatsProjection;
 import dev.group2.landmark_be.map.entity.AdmBoundary;
 import dev.group2.landmark_be.map.entity.Landmark;
 import dev.group2.landmark_be.map.repository.AdmBoundaryRepository;
+import dev.group2.landmark_be.map.repository.LandmarkRasterRepository;
 import dev.group2.landmark_be.map.repository.LandmarkRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +38,8 @@ public class LandmarkService {
 
 	private final LandmarkRepository landmarkRepository;
 	private final AdmBoundaryRepository admBoundaryRepository;
+	private final LandmarkRasterRepository rasterRepository;
+	private final RiskService riskService;
 
 	@Transactional(readOnly = true)
 	public List<LandmarkResponse> findAllLandmarks() {
@@ -144,6 +153,117 @@ public class LandmarkService {
 
 		// 4. Response 변환 후 반환
 		return convertToResponse(savedLandmark);
+	}
+
+	@Transactional
+	public void deleteLandmark(Long landmarkId) {
+		if (!landmarkRepository.existsById(landmarkId)) {
+			throw new LandmarkNotFoundException(ErrorCode.LANDMARK_NOT_FOUND);
+		}
+		landmarkRepository.deleteById(landmarkId);
+	}
+
+	// 관리자 페이지용: 페이지네이션으로 랜드마크와 1~5월 위험도 데이터 조회
+	@Transactional(readOnly = true)
+	public PageResponse<LandmarkWithMonthlyDataResponse> getAllLandmarksWithMonthlyData(Integer year, int page, int size) {
+		// 1. 전체 랜드마크 개수 조회
+		long totalElements = landmarkRepository.countAllLandmarks();
+
+		// 2. 페이지네이션으로 랜드마크 조회 (쿼리 1개)
+		Pageable pageable = PageRequest.of(page, size);
+		List<Landmark> landmarks = landmarkRepository.findAllWithAdmBoundaryPaginated(pageable);
+
+		// 3. 해당 페이지 랜드마크들의 ID 추출
+		List<Long> landmarkIds = landmarks.stream()
+			.map(Landmark::getId)
+			.collect(Collectors.toList());
+
+		// 4. 해당 랜드마크들의 1~5월 Raster 통계 데이터만 조회 (쿼리 1개)
+		List<RasterStatsProjection> allStats = landmarkIds.isEmpty()
+			? List.of()
+			: rasterRepository.findStatsByLandmarkIdsAndYearForMonths1To5(landmarkIds, year);
+
+		// 5. 데이터를 Map으로 그룹화: landmarkId -> month -> (NDVI, NDMI)
+		Map<Long, Map<Integer, Map<String, java.math.BigDecimal>>> statsMap = new HashMap<>();
+		for (RasterStatsProjection stat : allStats) {
+			statsMap
+				.computeIfAbsent(stat.landmarkId(), k -> new HashMap<>())
+				.computeIfAbsent(stat.month(), k -> new HashMap<>())
+				.put(stat.indexType(), stat.valMean());
+		}
+
+		// 6. 각 랜드마크에 대해 위험도 계산 (메모리 내 처리)
+		List<LandmarkWithMonthlyDataResponse> content = landmarks.stream()
+			.map(landmark -> {
+				Map<Integer, LandmarkWithMonthlyDataResponse.MonthlyRiskData> monthlyData = new HashMap<>();
+				Map<Integer, Map<String, java.math.BigDecimal>> landmarkStats = statsMap.get(landmark.getId());
+
+				// 1~5월 데이터 처리
+				for (int month = 1; month <= 5; month++) {
+					if (landmarkStats != null && landmarkStats.containsKey(month)) {
+						Map<String, java.math.BigDecimal> monthStats = landmarkStats.get(month);
+						java.math.BigDecimal ndvi = monthStats.get("NDVI");
+						java.math.BigDecimal ndmi = monthStats.get("NDMI");
+
+						if (ndvi != null && ndmi != null) {
+							// 위험도 계산 (RiskService 로직과 동일)
+							java.math.BigDecimal riskScore = calculateRiskScore(ndvi, ndmi);
+							String riskLevel = getRiskLevel(riskScore);
+
+							monthlyData.put(month, new LandmarkWithMonthlyDataResponse.MonthlyRiskData(
+								riskScore.doubleValue(),
+								riskLevel
+							));
+						} else {
+							monthlyData.put(month, null);
+						}
+					} else {
+						monthlyData.put(month, null);
+					}
+				}
+
+				Point point = landmark.getGeom();
+				return new LandmarkWithMonthlyDataResponse(
+					landmark.getId(),
+					landmark.getName(),
+					landmark.getAddress(),
+					landmark.getAdmBoundary().getAdmCode(),
+					landmark.getAdmBoundary().getAdmName(),
+					point.getY(),
+					point.getX(),
+					monthlyData
+				);
+			})
+			.collect(Collectors.toList());
+
+		// 7. PageResponse로 감싸서 반환
+		return PageResponse.of(content, page, size, totalElements);
+	}
+
+	// 위험도 계산 (RiskService와 동일한 로직)
+	private java.math.BigDecimal calculateRiskScore(java.math.BigDecimal ndvi, java.math.BigDecimal ndmi) {
+		java.math.BigDecimal W_NDVI = java.math.BigDecimal.valueOf(0.3);
+		java.math.BigDecimal W_NDMI = java.math.BigDecimal.valueOf(0.7);
+		java.math.BigDecimal NORMALIZATION_FACTOR = java.math.BigDecimal.valueOf(2.0);
+		java.math.BigDecimal ONE = java.math.BigDecimal.valueOf(1.0);
+
+		java.math.BigDecimal weightedNdmi = ndmi.multiply(W_NDMI);
+		java.math.BigDecimal weightedNdvi = ndvi.multiply(W_NDVI);
+		java.math.BigDecimal weightedDifference = weightedNdvi.subtract(weightedNdmi);
+
+		return (ONE.add(weightedDifference))
+			.divide(NORMALIZATION_FACTOR, 4, java.math.RoundingMode.HALF_UP);
+	}
+
+	// 위험도 레벨 판정 (RiskService와 동일한 로직)
+	private String getRiskLevel(java.math.BigDecimal score) {
+		if (score.compareTo(java.math.BigDecimal.valueOf(0.7)) >= 0) {
+			return "Critical";
+		} else if (score.compareTo(java.math.BigDecimal.valueOf(0.5)) > 0) {
+			return "Alert";
+		} else {
+			return "Low";
+		}
 	}
 
 }

@@ -43,6 +43,9 @@ const MapView: React.FC<MapViewProps> = ({
   const hostRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<Map | null>(null);
 
+  // 베이스맵 타입 상태 (일반지도 / 위성지도)
+  const [baseMapType, setBaseMapType] = React.useState<'base' | 'satellite'>('base');
+
   // ====== 마커 레이어 ======
   const markerSourceRef = useRef(new VectorSource());
   const markerLayerRef = useRef(
@@ -73,6 +76,11 @@ const MapView: React.FC<MapViewProps> = ({
   const popupRef = useRef<HTMLDivElement | null>(null);
   const overlayRef = useRef<Overlay | null>(null);
 
+  // 베이스맵 레이어 refs
+  const baseLayerRef = useRef<TileLayer<XYZ> | null>(null);
+  const satelliteLayerRef = useRef<TileLayer<XYZ> | null>(null);
+  const hybridLayerRef = useRef<TileLayer<XYZ> | null>(null);
+
   // -----------------------------
   // 1) 지도 생성
   // -----------------------------
@@ -83,8 +91,28 @@ const MapView: React.FC<MapViewProps> = ({
     const base = new TileLayer({
       source: new XYZ({
         url: 'https://api.vworld.kr/req/wmts/1.0.0/8E952DFB-FFDE-33E3-BA8A-3D78FF78B6CC/Base/{z}/{y}/{x}.png'
-      })
+      }),
+      visible: true,
     });
+    baseLayerRef.current = base;
+
+    // VWorld 위성지도 레이어
+    const satellite = new TileLayer({
+      source: new XYZ({
+        url: 'https://api.vworld.kr/req/wmts/1.0.0/8E952DFB-FFDE-33E3-BA8A-3D78FF78B6CC/Satellite/{z}/{y}/{x}.jpeg'
+      }),
+      visible: false,
+    });
+    satelliteLayerRef.current = satellite;
+
+    // VWorld 하이브리드 레이어 (라벨)
+    const hybrid = new TileLayer({
+      source: new XYZ({
+        url: 'https://api.vworld.kr/req/wmts/1.0.0/8E952DFB-FFDE-33E3-BA8A-3D78FF78B6CC/Hybrid/{z}/{y}/{x}.png'
+      }),
+      visible: false,
+    });
+    hybridLayerRef.current = hybrid;
 
     // VWorld WMS - 광역시도 경계
     const boundaryLayer = new TileLayer({
@@ -107,6 +135,8 @@ const MapView: React.FC<MapViewProps> = ({
       target: hostRef.current,
       layers: [
         base,
+        satellite,
+        hybrid,
         rasterLayerRef.current,
         boundaryLayer,
         markerLayerRef.current,
@@ -128,7 +158,24 @@ const MapView: React.FC<MapViewProps> = ({
   }, []);
 
   // -----------------------------
-  // 2) 팝업 Overlay
+  // 2) 베이스맵 타입 전환
+  // -----------------------------
+  useEffect(() => {
+    if (!baseLayerRef.current || !satelliteLayerRef.current || !hybridLayerRef.current) return;
+
+    if (baseMapType === 'base') {
+      baseLayerRef.current.setVisible(true);
+      satelliteLayerRef.current.setVisible(false);
+      hybridLayerRef.current.setVisible(false);
+    } else {
+      baseLayerRef.current.setVisible(false);
+      satelliteLayerRef.current.setVisible(true);
+      hybridLayerRef.current.setVisible(true);
+    }
+  }, [baseMapType]);
+
+  // -----------------------------
+  // 3) 팝업 Overlay
   // -----------------------------
   useEffect(() => {
     if (!mapRef.current) return;
@@ -155,7 +202,7 @@ const MapView: React.FC<MapViewProps> = ({
   }, []);
 
   // -----------------------------
-  // 3) 마커 Feature 생성
+  // 4) 마커 Feature 생성
   // -----------------------------
   useEffect(() => {
     const map = mapRef.current;
@@ -179,7 +226,7 @@ const MapView: React.FC<MapViewProps> = ({
   }, [landmarks]);
 
   // -----------------------------
-  // 4) 선택된 마커 스타일 강조
+  // 5) 선택된 마커 스타일 강조
   // -----------------------------
   useEffect(() => {
     const layer = markerLayerRef.current;
@@ -205,7 +252,7 @@ const MapView: React.FC<MapViewProps> = ({
   }, [selectedLandmark]);
 
   // -----------------------------
-  // 5) 선택된 랜드마크 → 줌 + 팝업 이동
+  // 6) 선택된 랜드마크 → 줌 + 팝업 이동
   // -----------------------------
   useEffect(() => {
     const map = mapRef.current;
@@ -224,7 +271,7 @@ const MapView: React.FC<MapViewProps> = ({
   }, [selectedLandmark]);
 
   // -----------------------------
-  // 6) 마커 클릭 이벤트
+  // 7) 마커 클릭 이벤트
   // -----------------------------
   useEffect(() => {
     const map = mapRef.current;
@@ -262,7 +309,7 @@ const MapView: React.FC<MapViewProps> = ({
   }, [onMarkerClick, landmarks, selectedLandmark]);
 
   // -----------------------------
-  // 7) 선택된 래스터 WMS 레이어 표시
+  // 8) 선택된 래스터 WMS 레이어 표시
   // -----------------------------
   useEffect(() => {
     const source = rasterLayerRef.current.getSource() as TileWMS | null;
@@ -307,9 +354,11 @@ const MapView: React.FC<MapViewProps> = ({
 
     layer.setVisible(true);
   }, [selectedIndexType, rasterData, selectedLandmark]);
-  // 8) 렌더링
+
   // -----------------------------
-  
+  // 9) 렌더링
+  // -----------------------------
+
   // 사용 가능한 indexType 목록
   const availableIndexTypes = Array.from(
     new Set(rasterData.map((r) => r.indexType))
@@ -324,12 +373,62 @@ const MapView: React.FC<MapViewProps> = ({
         position: "relative",
       }}
     >
+      {/* 베이스맵 전환 토글 버튼 */}
+      <div
+        style={{
+          position: "absolute",
+          top: 16,
+          right: 16,
+          zIndex: 1000,
+          display: "flex",
+          borderRadius: 8,
+          backgroundColor: "#ffffff",
+          boxShadow: "0 4px 12px rgba(15, 23, 42, 0.15)",
+          border: "1px solid #e5e7eb",
+          overflow: "hidden",
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setBaseMapType('base')}
+          style={{
+            padding: "8px 16px",
+            fontSize: 13,
+            fontWeight: 600,
+            border: "none",
+            backgroundColor: baseMapType === 'base' ? "#2563eb" : "#ffffff",
+            color: baseMapType === 'base' ? "#ffffff" : "#4b5563",
+            cursor: "pointer",
+            transition: "all 0.2s",
+          }}
+        >
+          일반지도
+        </button>
+        <button
+          type="button"
+          onClick={() => setBaseMapType('satellite')}
+          style={{
+            padding: "8px 16px",
+            fontSize: 13,
+            fontWeight: 600,
+            border: "none",
+            borderLeft: "1px solid #e5e7eb",
+            backgroundColor: baseMapType === 'satellite' ? "#2563eb" : "#ffffff",
+            color: baseMapType === 'satellite' ? "#ffffff" : "#4b5563",
+            cursor: "pointer",
+            transition: "all 0.2s",
+          }}
+        >
+          위성지도
+        </button>
+      </div>
+
       {/* 래스터 로딩 상태 표시 */}
       {rasterLoading && (
         <div
           style={{
             position: "absolute",
-            top: 16,
+            top: 64,
             right: 16,
             zIndex: 1100,
             padding: "8px 12px",
